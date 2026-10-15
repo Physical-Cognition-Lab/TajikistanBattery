@@ -1,0 +1,30 @@
+# Instructions for the Hide and Seek task.
+#
+# Each message is one [section] block. Everything under a heading, until the
+# next heading, is the message. Blank lines make paragraph breaks. Edit the
+# text freely, or translate it, without touching any code.
+#
+# Keep the [headings] themselves exactly as they are.
+
+[welcome]
+In this game, you will play with colorful puppets.
+
+Please keep the full-screen mode until the end of the game.
+
+Press the space bar when you are ready to play.
+
+[hide]
+Click on the puppet to make it hide
+
+[predict]
+Click where you think the puppet will appear. Try to be as precise as possible
+
+[change]
+You can change puppets at any time.
+
+[end]
+Game over!
+
+Press SPACE to close. Your results are already saved.
+
+(And remember to fill in the questionnaire)

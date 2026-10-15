@@ -1,0 +1,33 @@
+# ===========================================================================
+# Line endings
+# ---------------------------------------------------------------------------
+# Store and check out every text file as LF, so the repository behaves the
+# same on Windows, macOS and Linux.
+# ===========================================================================
+* text=auto eol=lf
+
+# Windows batch launchers are the one exception: they must stay CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# ===========================================================================
+# Binary assets (never treated or normalised as text)
+# ===========================================================================
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.wav  binary
+*.mp3  binary
+*.mp4  binary
+*.avi  binary
+*.mov  binary
+*.xlsx binary
+*.db   binary
+
+# ===========================================================================
+# pixi
+# ===========================================================================
+# SCM syntax highlighting & preventing 3-way merges
+pixi.lock merge=binary linguist-language=YAML linguist-generated=true -diff
