@@ -1,0 +1,7 @@
+# Microscope - image 720 x 576 pixels
+# class       centre_x  centre_y  width  height  area_px  area_percent
+functional       386       294    218     165    35970          8.67
+neither          400       158    148      55     8140          1.96
+neither          412       413    175      62    10782          2.60
+physical         316       114    121      92    11132          2.68
+physical         274       332    137      80    10960          2.64

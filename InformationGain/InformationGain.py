@@ -1,75 +1,8 @@
+from contextlib import ExitStack, nullcontext
 from datetime import datetime
-import json
 from pathlib import Path
 
-import numpy as np
-import pandas as pd
-import psychopy
-from psychopy import core, event, gui, sound, visual
-from psychopy.hardware.speaker import SpeakerDevice
-
-from video_recording.webcam_recorder import WebcamRecorder
-
-
-#----------------------------- Functions  ---------------------------------------------
-
-def get_participant(data_dir):
-    # Create the data folder if it does not exist
-    data_dir = Path(data_dir)
-    data_dir.mkdir(parents=True, exist_ok=True)
-
-    # Find participant folders such as S001 and S002
-    existing = [
-        folder.name
-        for folder in data_dir.iterdir()
-        if folder.is_dir()
-        and folder.name.startswith("S")
-        and folder.name[1:].isdigit()
-    ]
-
-    # Remove the "S" and turn the remaining text into numbers
-    numbers = [int(name[1:]) for name in existing]
-
-    # Suggest the highest number + 1, or 1 if there are no participants
-    next_number = max(numbers, default=0) + 1
-
-    # Keep asking until a valid, unused number is entered
-    while True:
-        dlg = gui.Dlg(title="StatLearning", alwaysOnTop=True)
-        dlg.addField("Participant number:", initial=str(next_number))
-        # Remove the message about asterisks
-        dlg.requiredMsg.setText("")
-        selection = dlg.show()
-
-        # End the script if the user clicks Cancel
-        if not dlg.OK:
-            core.quit()
-
-        # Check that the answer is a positive whole number
-        try:
-            subjnum = int(selection[0])
-
-            if subjnum < 1:
-                raise ValueError
-
-        except (ValueError, TypeError):
-            message = "Please enter a positive whole number."
-
-        else:
-            # Format the number: 1 becomes S001, 12 becomes S012
-            subject_id = f"S{subjnum:03d}"
-
-            # Return both versions if this participant does not exist
-            if subjnum not in numbers:
-                return subject_id, subjnum
-
-            message = f"{subject_id} already exists. Choose another number."
-
-        # Explain the problem before showing the entry dialog again
-        warning = gui.Dlg(title="Check participant number")
-        warning.addText(message)
-        warning.show()
-
+# ------------------------------ Helper functions ------------------------------
 
 # The session table: one row per action or event. Unused columns stay None.
 COLUMNS = [
@@ -109,9 +42,10 @@ def save_event(action, **fields):
 
     # Show the event on the video and send it to the eye tracker, so all the
     # records share one vocabulary and line up in time.
+    if etracker is not None:
+        etracker.record_event(action)
     if recorder is not None:
         recorder.send_text(action)
-    # etracker.record_event(action)   # added with DeToX
 
 
 def save_data(subject_dir):
@@ -122,33 +56,54 @@ def save_data(subject_dir):
     """
     data = {"metadata": session, "columns": COLUMNS, "rows": rows}
 
-    path = subject_dir / f"{subject_id}.json"
-    tmp = subject_dir / f"{subject_id}.json.tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, allow_nan=False)
-    tmp.replace(path)
+    write_json(subject_dir / f"{subject_id}.json", data)
 
 
-def show_message(text):
-    """Draw a message over the background and wait. Space continues, Esc quits."""
+def pause_study(win):
+    """Space resumes; Esc stops. Return True when the operator chooses to stop."""
+    print("Study paused. Space = continue; Esc = stop.", flush=True)
+    save_event("pause", phase="pause")
+
     background.draw()
-    visual.TextStim(win, text=text, color="black", height=40, units="pix").draw()
+    visual.TextStim(
+        win,
+        text="Paused\n\nSpace = continue\nEsc = stop",
+        color="black", height=40, units="pix",
+    ).draw()
     win.flip()
 
     event.clearEvents(eventType="keyboard")
-    if "escape" in event.waitKeys(keyList=["space", "escape"]):
-        win.close()
+    keys = event.waitKeys(keyList=["space", "escape"])
+    background.draw()
+    win.flip()  # clear the message before returning to the task
+
+    print("Stopping study..." if "escape" in keys else "Continuing study.", flush=True)
+    return "escape" in keys
+
+
+def ask_continue():
+    """Show the pause screen, and quit the session if asked to stop."""
+    if pause_study(win):
+        finish_study(stopped=True)
         core.quit()
 
 
-def get_bar():
+def show_end():
+    """Show 'The End!' for ten seconds, then let the study close."""
+    visual.TextStim(win, text="The End!", color="black", height=100,
+                    units="pix").draw()
+    win.flip()
+    core.wait(10)
+
+
+def check_keys():
     """Check the experimenter's keyboard input.
 
-    Space records a look-away, x cancels it, and q asks to quit.
+    Space records a look-away, x cancels it, and Esc asks whether to stop.
     """
     global track_time, cancel_time
 
-    keys = event.getKeys(keyList=["space", "x", "q"])
+    keys = event.getKeys(keyList=["space", "x", "escape"])
 
     # Record only the first space press for this look-away
     if "space" in keys and not track_time:
@@ -162,18 +117,12 @@ def get_bar():
         if track_time:
             save_event("lookaway_cancel", phase="lookaway")
 
-    # Ask for confirmation before ending the session
-    if "q" in keys:
-        DlgQuit.show()
-
-        if DlgQuit.OK:
-            finish_study(stopped=True)
-            win.close()
-            print("Testing session ended")
-            core.quit()
+    # Ask whether to keep going or stop
+    if "escape" in keys:
+        ask_continue()
 
 
-def goto_next():
+def check_lookaway():
     """Check whether the infant has looked away for one second.
 
     If so, show the background and wait for the experimenter to press space.
@@ -202,10 +151,9 @@ def goto_next():
 
     # Tell the experimenter what happens next
     if sequence_number < sequence_count:
-        print("Look-away criterion met. Press space to start sequence "
-              f"{sequence_number + 1}.")
+        print(f"Look-away criterion met. Space = start sequence {sequence_number + 1}; Esc = pause.", flush=True)
     else:
-        print("END OF THE STUDY! Press space to close.")
+        print("Look-away criterion met. Space = finish; Esc = pause.", flush=True)
 
     # Clear the stimulus and reset the look-away times
     background.draw()
@@ -213,65 +161,80 @@ def goto_next():
     track_time = []
     cancel_time = 0
 
-    # Wait for the experimenter to continue
-    event.waitKeys(keyList=["space"])
+    # Wait for the experimenter to continue, or to stop the session
+    if "escape" in event.waitKeys(keyList=["space", "escape"]):
+        ask_continue()
 
     return 1
 
 
 def show_background(duration, phase, action):
-    """Show only the background for duration seconds, checking the keyboard.
+    """Show the background for the matching number of 60 Hz refreshes.
 
-    `action` names the moment this flip marks: the opening background, or the
-    end of the cue or the target. The marker is recorded just after the flip,
-    so it lines up with the moment the background appears. Return 1 if the
-    sequence must end here, otherwise 0.
+    The first flip ends the previous stimulus and starts the gap. The next
+    stimulus flip ends the gap. Return 1 if a look-away ends the sequence.
     """
-    background.draw()
-    win.flip()
-    save_event(action, phase=phase)
+    global timing_issue
 
-    clock = core.Clock()
+    save_in_gap = action == "target_end" and etracker is not None
+    index = 0
+    deadline = None
+    while True:
+        if save_in_gap:
+            if deadline is not None and study_clock.getTime() >= deadline:
+                break
+        elif index >= round(duration * REFRESH_HZ):
+            break
+        background.draw()
+        win.flip()
 
-    while clock.getTime() < duration:
-        get_bar()
-        if goto_next():
+        if index == 0:
+            if save_in_gap:
+                deadline = study_clock.getTime() + duration
+            if phase in ("cue", "target"):
+                elapsed = study_clock.getTime() - current["stimulus_start"]
+                expected = CUE_SECS if phase == "cue" else TARGET_SECS
+                if abs(elapsed - expected) > TIMING_TOLERANCE:
+                    timing_issue = True
+
+            save_event(action, phase=phase)
+
+        check_keys()
+        if check_lookaway():
             return 1
 
-        # Brief pause to reduce CPU use
-        core.wait(0.001)
+        if index == 0 and save_in_gap:
+            # Saving uses part of the ITI, rather than adding another wait.
+            save_data(subject_dir)
+            etracker.save_data()
+            check_keys()
+            if check_lookaway():
+                return 1
+        index += 1
 
     return 0
 
 
-def show_stimulus(stimulus, name, location, duration, phase):
-    """Show an animation over the background at the given location.
+def show_stimulus(stimulus, name, location, phase):
+    """Draw each animation image once, one image per monitor refresh.
 
-    Each image is flipped on for about `duration` seconds. Both cue and target
-    are around one monitor refresh, so the refresh rate is what actually paces
-    the animation. The start marker is recorded after the first flip, when the
-    stimulus appears. Return 1 if the sequence must end here, otherwise 0.
+    No extra wait: win.flip() paces the animation. The following background
+    flip ends the last image. Return 1 if a look-away ends the sequence.
     """
-    for image in stimulus:
-        image.pos = location
-
     for index, image in enumerate(stimulus):
+        image.pos = location
         background.draw()
         image.draw()
         win.flip()
 
         if index == 0:
+            current["stimulus_start"] = study_clock.getTime()
             save_event(phase + "_start", phase=phase, stimulus=name,
                        x=float(location[0]), y=float(location[1]))
 
-        clock = core.Clock()
-
-        while clock.getTime() < duration:
-            get_bar()
-            if goto_next():
-                return 1
-
-            core.wait(0.001)
+        check_keys()
+        if check_lookaway():
+            return 1
 
     return 0
 
@@ -279,8 +242,8 @@ def show_stimulus(stimulus, name, location, duration, phase):
 def finish_study(stopped):
     """Mark the session finished and write the data file.
 
-    Used both when the study ends on its own and when the experimenter quits
-    with q while it is running.
+    Used both when the study ends on its own and when the experimenter stops
+    it with Esc while it is running.
     """
     save_event("study_stopped" if stopped else "study_end", phase="session",
                sequence=None, trial=None)
@@ -289,40 +252,36 @@ def finish_study(stopped):
     session["ended"] = datetime.now().isoformat(timespec="seconds")
     session["timing_issue"] = bool(timing_issue)
 
-    hothothot.stop()
+    background_sound.stop()
     save_data(subject_dir)
 
-    print(f"Saved {len(rows)} rows for {subject_id} to {subject_dir}", flush=True)
+    print(f"Study {'stopped early' if stopped else 'completed'}. Data saved to {subject_dir}.", flush=True)
     if timing_issue:
-        print("WARNING: some target presentations were outside "
-              f"{TARGET_SECS - TARGET_TOLERANCE}-"
-              f"{TARGET_SECS + TARGET_TOLERANCE} seconds.")
+        print("WARNING: some cues or targets differed from their expected "
+              f"duration by more than {TIMING_TOLERANCE} seconds.", flush=True)
 
 
-#----------------------------- Settings ---------------------------------------------
+# ------------------------------ Settings and paths ------------------------------
+
+etracker = None
 
 ## Paths
-StudyPath = Path("InformationGain")
+study_dir = Path("InformationGain")
 
-data_dir = StudyPath / "Data"
-stimuli_dir = StudyPath / "Stimuli"
+data_dir = study_dir / "Data"
+stimuli_dir = study_dir / "Stimuli"
 
 # Window size in pixels, matching the eye-tracking display
-winsize = 1280, 720
+WIN_SIZE = (1280, 720)
 
 # Where the cue appears: the centre of the screen
 cue_loc = [0, 0]
 
-# Requested on-screen time for each animation image. Both are around one
-# monitor refresh, so the refresh rate rounds them up and paces the animation:
-# at 60 Hz the 45-frame cue and the 90-frame target each last about 1.5 s.
-cue_time = 0.0188
-targ_time = 0.0118
-
-# What a target presentation should last at 60 Hz, and how far it may drift
-# before it is flagged
+# One image per refresh: 60 cue images = 1 s; 90 target images = 1.5 s.
+REFRESH_HZ = 60
+CUE_SECS = 1.0
 TARGET_SECS = 1.5
-TARGET_TOLERANCE = 0.1
+TIMING_TOLERANCE = 0.1
 
 # How long the infant may look away before the sequence is abandoned
 LOOKAWAY_SECS = 1
@@ -332,31 +291,43 @@ START_SECS = 1.5
 ISI_SECS = 0.75
 ITI_SECS = 0.75
 
-# Set up in the run below; None until then, so save_event can always ask.
+# Set while a session records, so save_event can also write to the video.
 recorder = None
 
 
-#----------------------------- Run ---------------------------------------------
+# ------------------------------ Run ------------------------------
 
 if __name__ == "__main__":
+    # Imports
+    # The webcam worker re-runs this file; it does not need the study libraries.
+    import numpy as np
+    import pandas as pd
+    import psychopy
+    from psychopy import core, event, sound, visual
+    from psychopy.hardware.speaker import SpeakerDevice
 
-    ## Subject
-    subject_id, subjnum = get_participant(data_dir)
+    from utils.subject_selection import get_participant
+    from utils.data_saving import write_json
+
+    # Participant setup
+    subject_id, subjnum, recording, tracker_checked, recalibrate = get_participant(
+        data_dir, recording=True, eye_tracker=True,
+    )
     subject_dir = data_dir / subject_id
 
-    print(f"Testing is starting for participant {subject_id}")
+    print(f"Preparing InformationGain for participant {subject_id}.", flush=True)
 
-    # Dialog shown when the experimenter presses q during the study
-    DlgQuit = gui.Dlg(title="End testing session?")
-    DlgQuit.addText("Press OK to quit, or Cancel to continue.")
+    # Prepare study sequence
+    # One row per trial, one column per sequence.
+    sequences = pd.read_csv(stimuli_dir / "sequences_t.csv", header=None).transpose()
+    sequence_count = len(sequences.columns)
 
-    ## Target positions
     # Four positions, one per screen quadrant
     targ_loc = np.array([
-        [-(winsize[0] * .8 - winsize[0] / 2), winsize[1] * .8 - winsize[1] / 2],
-        [winsize[0] * .8 - winsize[0] / 2, winsize[1] * .8 - winsize[1] / 2],
-        [-(winsize[0] * .8 - winsize[0] / 2), -(winsize[1] * .8 - winsize[1] / 2)],
-        [winsize[0] * .8 - winsize[0] / 2, -(winsize[1] * .8 - winsize[1] / 2)],
+        [-(WIN_SIZE[0] * .8 - WIN_SIZE[0] / 2), WIN_SIZE[1] * .8 - WIN_SIZE[1] / 2],
+        [WIN_SIZE[0] * .8 - WIN_SIZE[0] / 2, WIN_SIZE[1] * .8 - WIN_SIZE[1] / 2],
+        [-(WIN_SIZE[0] * .8 - WIN_SIZE[0] / 2), -(WIN_SIZE[1] * .8 - WIN_SIZE[1] / 2)],
+        [WIN_SIZE[0] * .8 - WIN_SIZE[0] / 2, -(WIN_SIZE[1] * .8 - WIN_SIZE[1] / 2)],
     ])
 
     # Rotate them with the participant number, so that over participants every
@@ -370,162 +341,153 @@ if __name__ == "__main__":
     elif subjnum in list(range(4, 1000, 4)):
         targ_loc = np.array([targ_loc[2], targ_loc[1], targ_loc[0], targ_loc[3]])
 
-    ## Window
-    win = visual.Window(winsize, screen=1, fullscr=False, color=(1, 1, 1),
-                        units="pix")
+    # Window and stimuli
+    # Registered cleanup runs on normal exit, Esc, or an exception (last added first).
+    with ExitStack() as cleanup:
+        win = visual.Window(WIN_SIZE, screen=1, fullscr=tracker_checked, color=(1, 1, 1),
+                            units="pix", waitBlanking=True)
+        cleanup.callback(win.close)
 
-    ## Session bookkeeping
-    # One row per action or event, rewritten to disk after every trial
-    rows = []
-    study_clock = core.Clock()
+        ## Session bookkeeping
+        # One row per action or event, rewritten to disk after every trial
+        rows = []
+        study_clock = core.Clock()
+        # Where we are in the study, so save_event can stamp rows without being told
+        current = {"sequence": None, "trial": None, "trial_start": 0.0,
+                   "stimulus_start": None}
+        # 0 until the first sequence starts, so that a look-away during the opening
+        # background is reported as sequence 1
+        sequence_number = 0
+        # Look-away tracking, updated by check_keys and check_lookaway
+        track_time = []
+        cancel_time = 0
+        timing_issue = False
 
-    # Where we are in the study, so save_event can stamp rows without being told
-    current = {"sequence": None, "trial": None, "trial_start": 0.0}
+        session = {
+            "subject": subject_id,
+            "study": "InformationGain",
+            "psychopy": psychopy.__version__,
+            "window_size": [int(win.size[0]), int(win.size[1])],
+            "started": datetime.now().isoformat(timespec="seconds"),
+            "ended": None,
+            "completed": False,
+            "timing_issue": False,
+        }
 
-    # 0 until the first sequence starts, so that a look-away during the opening
-    # background is reported as sequence 1
-    sequence_number = 0
+        ## Stimuli
+        background = visual.ImageStim(win, units="pix", size=WIN_SIZE,
+                                      image=str(stimuli_dir / "background.jpg"))
+        speaker = SpeakerDevice(index=13)  # lab machine only
+        background_sound = sound.Sound(str(stimuli_dir / "hothothot_long.wav"),
+                                       speaker=speaker, volume=1.0)
+        cleanup.callback(background_sound.stop)
 
-    # Look-away tracking, updated by get_bar and goto_next
-    track_time = []
-    cancel_time = 0
+        # Images: the folders come in numbered cue/target pairs, 01_StarCue,
+        # 01_StarTarget, 02_TrefoilCue, ...
+        IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg"}
+        stimulus_dirs = sorted(d for d in stimuli_dir.iterdir() if d.is_dir())
+        stimulus_names = [directory.name for directory in stimulus_dirs]
+        assert len(stimulus_dirs) == 2 * sequence_count, \
+            "expected one cue and one target folder per sequence"
 
-    # A target presentation outside the expected duration sets this
-    timing_issue = False
-
-    # Everything about the session that is not a row
-    session = {
-        "subject": subject_id,
-        "study": "InformationGain",
-        "psychopy": psychopy.__version__,
-        "window_size": [int(win.size[0]), int(win.size[1])],
-        "started": datetime.now().isoformat(timespec="seconds"),
-        "ended": None,
-        "completed": False,
-        "timing_issue": False,
-    }
-
-    ## Stimuli
-    # One row per trial, one column per sequence
-    sequences = pd.read_csv(stimuli_dir / "sequences_t.csv", header=None).transpose()
-    sequence_count = len(sequences)
-
-    # The background image
-    background = visual.ImageStim(win, units="pix", size=winsize,
-                                  image=str(stimuli_dir / "background.jpg"))
-
-    # Sound
-    speaker = SpeakerDevice(index=13)  # lab machine only
-
-    hothothot = sound.Sound(str(stimuli_dir / "hothothot_long.wav"),
-                            speaker=speaker, volume=1.0)
-
-    # Images: the folders come in numbered cue/target pairs, 01_StarCue,
-    # 01_StarTarget, 02_TrefoilCue, ...
-    IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg"}
-    stimulus_dirs = sorted(d for d in stimuli_dir.iterdir() if d.is_dir())
-    stimulus_names = [directory.name for directory in stimulus_dirs]
-
-    # One cue and one target folder per sequence
-    assert len(stimulus_dirs) == 2 * sequence_count, \
-        "expected one cue and one target folder per sequence"
-
-    stimuli = [
-        [
-            visual.ImageStim(win, units="pix",
-                             size=(200 * winsize[0] / 1920,) * 2,
-                             image=str(image))
-            for image in sorted(directory.iterdir())
-            if image.suffix.lower() in IMAGE_SUFFIXES
+        stimuli = [
+            [
+                visual.ImageStim(win, units="pix",
+                                 size=(200 * WIN_SIZE[0] / 1920,) * 2,
+                                 image=str(image))
+                for image in sorted(directory.iterdir())
+                if image.suffix.lower() in IMAGE_SUFFIXES
+            ]
+            for directory in stimulus_dirs
         ]
-        for directory in stimulus_dirs
-    ]
+        for index, animation in enumerate(stimuli):
+            seconds = CUE_SECS if index % 2 == 0 else TARGET_SECS
+            assert len(animation) == round(seconds * REFRESH_HZ), \
+                f"unexpected image count in {stimulus_names[index]}"
 
-    ## START
-    print("_____________________________________________________________")
-    print("Ready. Make sure to record video.\nThen press SPACE to start.")
-    print("Press SPACE when the infant looks away and x to cancel a mistake,")
-    print("SPACE again to start the next sequence, and q to quit.")
-    print("_____________________________________________________________")
+        if tracker_checked:
+            from DeToX import ETracker
 
-    event.clearEvents(eventType="keyboard")
-    event.waitKeys(keyList=["space"])
+            etracker = ETracker(win)
+            etracker.show_status()
+            if recalibrate:
+                etracker.calibrate()
 
-    # From here on a run always writes data, so the participant folder can exist
-    subject_dir.mkdir(parents=True, exist_ok=True)
+        # Start screen
+        print(f"Ready: participant {subject_id}. Space = start.", flush=True)
+        print("During trials: Space = mark look-away; X = cancel within 1 s; Esc = pause.", flush=True)
+        event.clearEvents(eventType="keyboard")
+        event.waitKeys(keyList=["space"])
 
-    # The recording lives exactly as long as the study: start() here, and stop()
-    # is guaranteed on the way out, including when q quits the session.
-    with WebcamRecorder.for_subject(subject_dir) as recorder:
-        if recorder.last_error:
-            print(f"WARNING: no video this session: {recorder.last_error}",
-                  flush=True)
+        # Recording starts after the start screen and stops before the end screen.
+        recorder_ctx = nullcontext()
+        if recording:
+            from utils.video_recording.webcam_recorder import WebcamRecorder
+            recorder_ctx = WebcamRecorder.for_subject(subject_dir)
 
-        save_event("study_start", phase="session")
+        with recorder_ctx as recorder, ExitStack() as gaze_cleanup:
+            if etracker is not None:
+                gaze_cleanup.callback(etracker.stop_recording)
+                etracker.start_recording(str(subject_dir / f"{subject_id}_gaze.h5"))
+            if recorder is not None and recorder.last_error:
+                print(f"WARNING: no video this session: {recorder.last_error}", flush=True)
 
-        hothothot.play()
-        # TODO start the DeToX recording here, before the study begins
-        show_background(START_SECS, "background", "background_start")
+            print("Study started. Esc = pause.", flush=True)
+            save_event("study_start", phase="session")
+            background_sound.play()
+            show_background(START_SECS, "background", "background_start")
 
-        ## Experiment loop
-        for sequence_number, column in enumerate(sequences, start=1):
-            cue_idx = 2 * (sequence_number - 1)
-            trials_in_sequence = len(sequences[column])
+            # Study loop
+            for sequence_number, column in enumerate(sequences, start=1):
+                cue_idx = 2 * (sequence_number - 1)
+                trials_in_sequence = len(sequences[column])
+                current["sequence"] = sequence_number
+                current["trial"] = None
+                save_event("sequence_start", phase="sequence")
+                print(f"Sequence {sequence_number}/{sequence_count} started.", flush=True)
 
-            current["sequence"] = sequence_number
-            current["trial"] = None
-            save_event("sequence_start", phase="sequence")
-            print(f"Started sequence {sequence_number}!", flush=True)
+                for trial_number, location_index in enumerate(sequences[column], start=1):
+                    current["trial"] = trial_number
+                    current["trial_start"] = study_clock.getTime()
+                    save_event("trial_start", phase="trial")
 
-            for trial_number, location_index in enumerate(sequences[column], start=1):
-                current["trial"] = trial_number
-                current["trial_start"] = study_clock.getTime()
-                save_event("trial_start", phase="trial")
+                    # Cue, its ISI, target, its ITI. The ISI flip is the moment the
+                    # cue disappears, and the ITI flip the moment the target does,
+                    # so those two flips mark the ends instead of separate events.
+                    # A look-away in any of them ends the sequence.
+                    looked_away = show_stimulus(stimuli[cue_idx],
+                                                stimulus_names[cue_idx],
+                                                cue_loc, "cue")
+                    if not looked_away:
+                        looked_away = show_background(ISI_SECS, "cue", "cue_end")
+                    if not looked_away:
+                        looked_away = show_stimulus(stimuli[cue_idx + 1],
+                                                    stimulus_names[cue_idx + 1],
+                                                    targ_loc[location_index - 1],
+                                                    "target")
+                    if not looked_away:
+                        looked_away = show_background(ITI_SECS, "target", "target_end")
 
-                # Cue, its ISI, target, its ITI. The ISI flip is the moment the
-                # cue disappears, and the ITI flip the moment the target does,
-                # so those two flips mark the ends instead of separate events.
-                # A look-away in any of them ends the sequence.
-                looked_away = show_stimulus(stimuli[cue_idx],
-                                            stimulus_names[cue_idx],
-                                            cue_loc, cue_time, "cue")
-                if not looked_away:
-                    looked_away = show_background(ISI_SECS, "cue", "cue_end")
+                    save_event("trial_aborted" if looked_away else "trial_end", phase="trial")
+                    if etracker is None or looked_away:
+                        save_data(subject_dir)
+                        if etracker is not None:
+                            etracker.save_data()
+                    if looked_away:
+                        break
 
-                if not looked_away:
-                    target_start = study_clock.getTime()
-                    looked_away = show_stimulus(stimuli[cue_idx + 1],
-                                                stimulus_names[cue_idx + 1],
-                                                targ_loc[location_index - 1],
-                                                targ_time, "target")
-                    target_secs = study_clock.getTime() - target_start
-                    if not (TARGET_SECS - TARGET_TOLERANCE
-                            <= target_secs <= TARGET_SECS + TARGET_TOLERANCE):
-                        timing_issue = True
+                current["trial"] = None
+                save_event("sequence_end", phase="sequence")
+                if trial_number == trials_in_sequence:
+                    if sequence_number < sequence_count:
+                        print("Sequence ended. Space = start the next sequence; Esc = pause.", flush=True)
+                    else:
+                        print("Final sequence ended. Space = finish; Esc = pause.", flush=True)
+                    if "escape" in event.waitKeys(keyList=["space", "escape"]):
+                        ask_continue()
 
-                if not looked_away:
-                    looked_away = show_background(ITI_SECS, "target", "target_end")
+            # Final save and cleanup
+            finish_study(stopped=False)
 
-                save_event("trial_aborted" if looked_away else "trial_end",
-                           phase="trial")
-                save_data(subject_dir)
-
-                if looked_away:
-                    break
-
-            current["trial"] = None
-            save_event("sequence_end", phase="sequence")
-
-            if trial_number == trials_in_sequence:
-                if sequence_number < sequence_count:
-                    print("Sequence has ended. Press the bar to start the next one.")
-                else:
-                    print("END OF THE STUDY! Press the bar to close.")
-                event.waitKeys(keyList=["space"])
-
-        ## STOP
-        finish_study(stopped=False)
-
-    # The video file is closed here.
-    show_message("The End!\n\nPress SPACE to close.")
-    win.close()
+        # The video file is closed here.
+        show_end()

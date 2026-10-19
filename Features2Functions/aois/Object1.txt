@@ -1,0 +1,5 @@
+# Object1 - image 720 x 576 pixels
+# class       centre_x  centre_y  width  height  area_px  area_percent
+functional       365       393    219     217    47523         11.46
+neither          362       238    193      96    18528          4.47
+physical         358       132    214     122    26108          6.30

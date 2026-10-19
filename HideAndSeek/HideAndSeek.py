@@ -1,13 +1,9 @@
-import json
+from contextlib import ExitStack, nullcontext
+import csv
 from datetime import datetime
 from pathlib import Path
-import psychopy
-from psychopy import visual, gui, core, event, sound
-import pandas as pd
 
-
-
-#----------------------------- Functions  ---------------------------------------------
+# ------------------------------ Helper functions ------------------------------
 
 def load_text(path):
     """Read a text file of [section] blocks into a dict of name -> text.
@@ -28,62 +24,25 @@ def load_text(path):
     return {name: "\n".join(lines).strip() for name, lines in sections.items()}
 
 
-def get_participant(data_dir):
-    # Create the data folder if it does not exist
-    data_dir = Path(data_dir)
-    data_dir.mkdir(parents=True, exist_ok=True)
+def get_assignment_row(subject_id):
+    """Return this subject's row of the colour/pattern schedule."""
+    if not assignments_file.exists():
+        print(f"No participant assignments file: {assignments_file}")
+        print("Create it with:")
+        print("  pixi run python HideAndSeek/tools/make_participant_assignments.py")
+        core.quit()
 
-    # Find participant folders such as S001 and S002
-    existing = [
-        folder.name
-        for folder in data_dir.iterdir()
-        if folder.is_dir()
-        and folder.name.startswith("S")
-        and folder.name[1:].isdigit()
-    ]
+    with assignments_file.open(encoding="utf-8", newline="") as log:
+        schedule = {row["subject"]: row for row in csv.DictReader(log)}
 
-    # Remove the "S" and turn the remaining text into numbers
-    numbers = [int(name[1:]) for name in existing]
+    if subject_id not in schedule:
+        print(f"{subject_id} is not in {assignments_file}, "
+              f"which holds {len(schedule)} subjects.")
+        print("Extend it with:")
+        print("  pixi run python HideAndSeek/tools/make_participant_assignments.py --subjects 500")
+        core.quit()
 
-    # Suggest the highest number + 1, or 1 if there are no participants
-    next_number = max(numbers, default=0) + 1
-
-    # Keep asking until a valid, unused number is entered
-    while True:
-        dlg = gui.Dlg(title="StatLearning",alwaysOnTop = True)
-        dlg.addField("Participant number:", initial=str(next_number))
-        # Remove the message about asterisks
-        dlg.requiredMsg.setText("")
-        selection = dlg.show()
-
-        # End the script if the user clicks Cancel
-        if not dlg.OK:
-            core.quit()
-
-        # Check that the answer is a positive whole number
-        try:
-            subjnum = int(selection[0])
-
-            if subjnum < 1:
-                raise ValueError
-
-        except (ValueError, TypeError):
-            message = "Please enter a positive whole number."
-
-        else:
-            # Format the number: 1 becomes S001, 12 becomes S012
-            subject_id = f"S{subjnum:03d}"
-
-            # Return both versions if this participant does not exist
-            if subjnum not in numbers:
-                return subject_id, subjnum
-
-            message = f"{subject_id} already exists. Choose another number."
-
-        # Explain the problem before showing the entry dialog again
-        warning = gui.Dlg(title="Check participant number")
-        warning.addText(message)
-        warning.show()
+    return schedule[subject_id]
 
 
 # The session table: one row per action or event. Unused columns stay None.
@@ -119,6 +78,10 @@ def save_event(action, trial=None, **fields):
 
     rows.append(row)
 
+    # Mirror the same event onto the recorded video, when recording is on.
+    if recorder is not None:
+        recorder.send_text(action)
+
 
 def save_data(subject_dir):
     """Rewrite the participant file, so a stop or crash loses nothing.
@@ -133,18 +96,12 @@ def save_data(subject_dir):
 
     data = {"metadata": session, "columns": COLUMNS, "rows": rows}
 
-    # Dump to a temporary file first: if anything fails part-way (a stray NaN,
-    # a full disk), the previous good file is left untouched.
-    path = subject_dir / f"{subject_id}.json"
-    tmp = subject_dir / f"{subject_id}.json.tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, allow_nan=False)
-    tmp.replace(path)
+    write_json(subject_dir / f"{subject_id}.json", data)
 
 
 def pause_study(win):
-    """Show pause instructions: Space continues, Esc stops."""
-    print("Paused: Space = continue, Esc = stop.", flush=True)
+    """Space resumes; Esc stops. Return True when the operator chooses to stop."""
+    print("Study paused. Space = continue; Esc = stop.", flush=True)
     save_event("pause")
     visual.TextStim(
         win,
@@ -155,7 +112,7 @@ def pause_study(win):
     event.clearEvents(eventType="keyboard")
     keys = event.waitKeys(keyList=["space", "escape"])
     win.flip()  # Clear the message before returning to the task.
-    print("Stop requested." if "escape" in keys else "Continuing.", flush=True)
+    print("Stopping study..." if "escape" in keys else "Continuing study.", flush=True)
     return "escape" in keys
 
 
@@ -201,7 +158,6 @@ def show_message(win, stimuli, text):
     event.clearEvents(eventType="keyboard")
     keys = event.waitKeys(keyList=["space", "escape"])
     if "escape" in keys:
-        win.close()
         core.quit()
 
 
@@ -371,14 +327,16 @@ def reveal(win, stimuli, puppet, target_pos, target_angle):
     stimuli["sounds"]["reveal"].stop()
 
 
-#----------------------------- Settings, Paths and stimuli  ---------------------------------------------
+# ------------------------------ Settings and paths ------------------------------
 
 ## Paths
 # Works both as a script and when running cells in a notebook.
-StudyPath = Path("HideAndSeek")
+study_dir = Path("HideAndSeek")
 
-data_dir = StudyPath / "Data"
-stimuli_dir = StudyPath / "Stimuli"
+data_dir = study_dir / "Data"
+stimuli_dir = study_dir / "Stimuli"
+assignments_file = stimuli_dir / "participant_assignments.csv"
+WIN_SIZE = (1280, 720)
 
 ### Stimuli
 
@@ -409,19 +367,7 @@ sound_files = {
 
 ### Instructions
 # Editable, translatable text: one [section] block per message.
-texts = load_text(StudyPath / "instructions.txt")
-
-### Locations
-# Loaded from locations.csv: puppet, position, x, y, angle
-
-locations = {
-    colour: group[["x", "y", "angle"]].values.tolist()
-    for colour, group in (
-        pd.read_csv(StudyPath / "locations.csv")
-        .sort_values(["puppet", "position"])
-        .groupby("puppet")
-    )
-}
+texts = load_text(study_dir / "instructions.txt")
 
 ### Stop rule
 # A puppet has 35 locations. The original also capped the session at 83
@@ -437,164 +383,190 @@ portrait_positions = {
 }
 
 
-#----------------------------- Run  ---------------------------------------------
+# Set while a session records, so save_event can also write to the video.
+recorder = None
 
-# Session bookkeeping used by save_event and save_data.
-rows = []      # the session table: one dict per action or event
-trials = {}    # per-trial values, known only after the reveal
-study_clock = core.Clock()
-stop_requested = False
+# ------------------------------ Run ------------------------------
 
-subject_id, subjnum = get_participant(data_dir)
-subject_dir = data_dir / subject_id
-subject_dir.mkdir(parents=True, exist_ok=True)
+if __name__ == "__main__":
+    # Imports
+    # The webcam worker re-runs this file; it does not need the study libraries.
+    import psychopy
+    from psychopy import visual, core, event, sound
+    import pandas as pd
 
-# Everything about the session that is not a row.
-session = {
-    "subject": subject_id,
-    "study": "HideAndSeek",
-    "psychopy": psychopy.__version__,
-    "window_size": [1280, 720],
-    "started": datetime.now().isoformat(timespec="seconds"),
-    "ended": None,
-    "completed": False,
-}
+    from utils.subject_selection import get_participant
+    from utils.data_saving import write_json
+    from utils.pause_video import show_pause_video
 
-# Create the experiment window.
-win = visual.Window(
-    size=(1280, 720),
-    fullscr=False,
-    units="height",
-    color="black",
-)
+    # Participant setup
+    # Keep this clock running through the dialog, as in existing session logs.
+    study_clock = core.Clock()
+    subject_id, subjnum, recording, _, _ = get_participant(data_dir)
+    subject_dir = data_dir / subject_id
+    print(f"Preparing HideAndSeek for participant {subject_id}.", flush=True)
 
-# Record the size actually used: it can differ from the requested one.
-session["window_size"] = [int(win.size[0]), int(win.size[1])]
-
-# Load the fixed scene.
-stimuli = {
-    "sky": visual.ImageStim(win, image=str(scene_files["sky"]), size=(1.77778, 1)),
-    "foreground": visual.ImageStim(win, image=str(scene_files["foreground"]), size=(1.77778, 1)),
-    "hidden_patch": visual.ImageStim(
-        win,
-        image=str(scene_files["hidden_patch"]),
-        pos=(0, -0.1),
-        size=(0.15, 0.2),
-    ),
-    "puppets": {},
-    "portraits": {},
-    "sounds": {},
-    "instructions": {
-        # Both start empty; only one is filled at a time, in select_and_predict.
-        "hint": visual.TextStim(win, text="", pos=(0, -0.23), height=0.022, color="black"),
-        "footer": visual.TextStim(win, text="", pos=(0, -0.483), height=0.021, color="black"),
-    },
-}
-
-# Load each puppet: its central image, its portrait, and its animation frames.
-for colour, files in puppet_files.items():
-
-    cue = visual.ImageStim(
-        win,
-        image=str(files["cue"]),
-        pos=(0, -0.1),
-        size=(0.15, 0.2),
-    )
-
-    portrait = visual.ImageStim(
-        win,
-        image=str(files["portrait"]),
-        pos=portrait_positions[colour],
-        size=(0.16428, 0.2),
-    )
-
-    animation = [
-        visual.ImageStim(win, image=str(path), size=(0.1, 0.1))
-        for path in files["animation"]
-    ]
-
-    stimuli["puppets"][colour] = {"cue": cue, "animation": animation}
-    stimuli["portraits"][colour] = portrait
-
-# Load the sounds.
-for name, path in sound_files.items():
-    stimuli["sounds"][name] = sound.Sound(str(path))
-
-# Welcome screen: waits for Space; Esc quits before the task starts.
-show_message(win, stimuli, texts["welcome"])
-
-
-#----------------------------- Main loop  ---------------------------------------------
-
-position_index = {"blue": 0, "red": 0, "green": 0}
-
-current_puppet = "blue"
-
-save_event("study_start")
-print(f"Starting {subject_id}. Escape pauses; Space continues.", flush=True)
-
-while not stop_requested:
-
-    trial_number = len(trials) + 1
-    trial_start_time = study_clock.getTime()
-    save_event("trial_start", trial=trial_number, time_study=trial_start_time,
-               time_trial=0.0)
-
-    # Let the participant pick a puppet, hide it, and predict where it appears.
-    puppet, prediction, clicks = select_and_predict(
-        win, stimuli, current_puppet, first_trial=(trial_number == 1)
-    )
-
-    if stop_requested:
-        break
-
-    current_puppet = puppet
-
-    # Every touch made while choosing becomes a row of the table.
-    for click in clicks:
-        save_event(click["action"], trial=trial_number, phase=click["phase"],
-                   puppet=click["puppet"], x=click["x"], y=click["y"],
-                   time_study=click["time"],
-                   time_trial=click["time"] - trial_start_time)
-
-    # Advance that puppet's own sequence.
-    target_pos_x, target_pos_y, target_angle = locations[puppet][position_index[puppet]]
-    target_pos = (target_pos_x, target_pos_y)
-    position_index[puppet] += 1
-
-    # Show the reveal animation.
-    reveal(win, stimuli, puppet, target_pos, target_angle)
-
-    # Values that only exist after the reveal; save_data copies them into
-    # every row of this trial.
-    trials[trial_number] = {
-        "target_x": target_pos_x,
-        "target_y": target_pos_y,
-        "target_angle": target_angle,
-        "prediction_x": prediction[0],
-        "prediction_y": prediction[1],
+    # Prepare study sequence
+    # Loaded from locations.csv: pattern, position, x, y, angle.
+    # Patterns are named A, B and C; the schedule decides which character
+    # walks which one, so colour and trajectory are not confounded.
+    patterns = {
+        pattern: group[["x", "y", "angle"]].values.tolist()
+        for pattern, group in (
+            pd.read_csv(stimuli_dir / "locations.csv")
+            .sort_values(["pattern", "position"])
+            .groupby("pattern")
+        )
     }
 
-    trial_end_time = study_clock.getTime()
-    save_event("trial_end", trial=trial_number, time_study=trial_end_time,
-               time_trial=trial_end_time - trial_start_time)
-    save_data(subject_dir)
+    # Session bookkeeping used by save_event and save_data.
+    rows = []      # the session table: one dict per action or event
+    trials = {}    # per-trial values, known only after the reveal
+    stop_requested = False
 
-    # Stop when a puppet has used all 35 of its locations, or at the cap.
-    if len(trials) >= MAX_TRIALS or any(
-        position_index[c] >= len(locations[c]) for c in locations
-    ):
-        break
+    # Which trajectory each character walks, fixed for this subject by the
+    # schedule. locations stays keyed by colour, so the task code is unchanged.
+    schedule_row = get_assignment_row(subject_id)
+    locations = {
+        colour: patterns[schedule_row[colour]]
+        for colour in ("blue", "red", "green")
+    }
 
-session["completed"] = not stop_requested
-session["ended"] = datetime.now().isoformat(timespec="seconds")
-save_event("study_stopped" if stop_requested else "study_end")
-print(f"Study {'stopped' if stop_requested else 'completed'}.", flush=True)
+    # Everything about the session that is not a row.
+    session = {
+        "subject": subject_id,
+        "study": "HideAndSeek",
+        "schedule": assignments_file.name,
+        "patterns": {
+            colour: schedule_row[colour] for colour in ("blue", "red", "green")
+        },
+        "psychopy": psychopy.__version__,
+        "window_size": list(WIN_SIZE),
+        "started": datetime.now().isoformat(timespec="seconds"),
+        "ended": None,
+        "completed": False,
+    }
 
-save_data(subject_dir)
-print(f"Saved {len(trials)} trials for {subject_id} to {subject_dir}", flush=True)
+    # Window and stimuli
+    # Registered cleanup runs on normal exit, Esc, or an exception (last added first).
+    with ExitStack() as cleanup:
+        win = visual.Window(size=WIN_SIZE, fullscr=False, units="height", color="black")
+        cleanup.callback(win.close)
+        # Record the size actually used: it can differ from the requested one.
+        session["window_size"] = [int(win.size[0]), int(win.size[1])]
 
-# Closing message. The data is already saved, so waiting here is safe.
-show_message(win, stimuli, texts["end"])
+        # Load the fixed scene.
+        stimuli = {
+            "sky": visual.ImageStim(win, image=str(scene_files["sky"]), size=(1.77778, 1)),
+            "foreground": visual.ImageStim(win, image=str(scene_files["foreground"]), size=(1.77778, 1)),
+            "hidden_patch": visual.ImageStim(
+                win, image=str(scene_files["hidden_patch"]),
+                pos=(0, -0.1), size=(0.15, 0.2),
+            ),
+            "puppets": {},
+            "portraits": {},
+            "sounds": {},
+            "instructions": {
+                # Both start empty; only one is filled at a time, in select_and_predict.
+                "hint": visual.TextStim(win, text="", pos=(0, -0.23), height=0.022, color="black"),
+                "footer": visual.TextStim(win, text="", pos=(0, -0.483), height=0.021, color="black"),
+            },
+        }
 
-win.close()
+        # Load each puppet: its central image, its portrait, and its animation frames.
+        for colour, files in puppet_files.items():
+            cue = visual.ImageStim(win, image=str(files["cue"]),
+                                   pos=(0, -0.1), size=(0.15, 0.2))
+            portrait = visual.ImageStim(win, image=str(files["portrait"]),
+                                        pos=portrait_positions[colour], size=(0.16428, 0.2))
+            animation = [
+                visual.ImageStim(win, image=str(path), size=(0.1, 0.1))
+                for path in files["animation"]
+            ]
+            stimuli["puppets"][colour] = {"cue": cue, "animation": animation}
+            stimuli["portraits"][colour] = portrait
+
+        # Register each sound immediately, including when later loading fails.
+        for name, path in sound_files.items():
+            stimuli["sounds"][name] = sound.Sound(str(path))
+            cleanup.callback(stimuli["sounds"][name].stop)
+
+        # Start screen
+        print(f"Ready: participant {subject_id}. Space = start; Esc = abort.", flush=True)
+        show_message(win, stimuli, texts["welcome"])
+
+        # Recording
+        recorder_ctx = nullcontext()
+        if recording:
+            from utils.video_recording.webcam_recorder import WebcamRecorder
+            recorder_ctx = WebcamRecorder.for_subject(subject_dir)
+
+        with recorder_ctx as recorder:
+            if recorder is not None and recorder.last_error:
+                print(f"WARNING: no video this session: {recorder.last_error}", flush=True)
+
+            # Study loop
+            position_index = {"blue": 0, "red": 0, "green": 0}
+            current_puppet = "blue"
+            save_event("study_start")
+            print("Study started. Esc = pause; X = video break after the current trial.", flush=True)
+
+            while not stop_requested:
+                trial_number = len(trials) + 1
+                trial_start_time = study_clock.getTime()
+                save_event("trial_start", trial=trial_number, time_study=trial_start_time,
+                           time_trial=0.0)
+                puppet, prediction, clicks = select_and_predict(
+                    win, stimuli, current_puppet, first_trial=(trial_number == 1)
+                )
+                if stop_requested:
+                    break
+                current_puppet = puppet
+
+                # Every touch made while choosing becomes a row of the table.
+                for click in clicks:
+                    save_event(click["action"], trial=trial_number, phase=click["phase"],
+                               puppet=click["puppet"], x=click["x"], y=click["y"],
+                               time_study=click["time"],
+                               time_trial=click["time"] - trial_start_time)
+
+                # Advance that puppet's own sequence and show the reveal.
+                target_pos_x, target_pos_y, target_angle = locations[puppet][position_index[puppet]]
+                target_pos = (target_pos_x, target_pos_y)
+                position_index[puppet] += 1
+                reveal(win, stimuli, puppet, target_pos, target_angle)
+
+                # Values that only exist after the reveal; save_data copies them into
+                # every row of this trial.
+                trials[trial_number] = {
+                    "target_x": target_pos_x,
+                    "target_y": target_pos_y,
+                    "target_angle": target_angle,
+                    "prediction_x": prediction[0],
+                    "prediction_y": prediction[1],
+                }
+                trial_end_time = study_clock.getTime()
+                save_event("trial_end", trial=trial_number, time_study=trial_end_time,
+                           time_trial=trial_end_time - trial_start_time)
+                save_data(subject_dir)
+                print(f"Trial {trial_number} completed.", flush=True)
+
+                if not stop_requested and "x" in event.getKeys(keyList=["x"]):
+                    show_pause_video(win, save_event)
+
+                # Stop when a puppet has used all 35 of its locations, or at the cap.
+                if len(trials) >= MAX_TRIALS or any(
+                    position_index[c] >= len(locations[c]) for c in locations
+                ):
+                    break
+
+            # Final save and cleanup
+            session["completed"] = not stop_requested
+            session["ended"] = datetime.now().isoformat(timespec="seconds")
+            save_event("study_stopped" if stop_requested else "study_end")
+            save_data(subject_dir)
+            print(f"Study {'stopped early' if stop_requested else 'completed'}. Data saved to {subject_dir}.", flush=True)
+
+            # Closing message. The data is already saved, so waiting here is safe.
+            print("Space = close; Esc = exit.", flush=True)
+            show_message(win, stimuli, texts["end"])

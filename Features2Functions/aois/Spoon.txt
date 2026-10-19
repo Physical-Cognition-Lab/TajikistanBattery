@@ -1,0 +1,5 @@
+# Spoon - image 720 x 576 pixels
+# class       centre_x  centre_y  width  height  area_px  area_percent
+functional       210       288    132     127    16764          4.04
+neither          302       284    103      73     7519          1.81
+physical         455       281    247      76    18772          4.53

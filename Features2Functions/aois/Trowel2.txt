@@ -1,0 +1,5 @@
+# Trowel2 - image 720 x 576 pixels
+# class       centre_x  centre_y  width  height  area_px  area_percent
+functional       251       142    259     190    49203         11.86
+neither          343       265    119      77     9185          2.21
+physical         446       396    283     154    43513         10.49

@@ -1,0 +1,5 @@
+# Bottle1 - image 720 x 576 pixels
+# class       centre_x  centre_y  width  height  area_px  area_percent
+functional       368       175    105     100    10500          2.53
+neither          362       258    108      70     7564          1.82
+physical         352       364    167     123    20523          4.95

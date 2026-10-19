@@ -1,0 +1,5 @@
+# Horn - image 720 x 576 pixels
+# class       centre_x  centre_y  width  height  area_px  area_percent
+functional       290       235    165     153    25251          6.09
+neither          375       287    137      80    10944          2.64
+physical         444       347    155     138    21421          5.17

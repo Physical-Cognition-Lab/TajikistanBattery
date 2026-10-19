@@ -1,0 +1,5 @@
+# Pacifier1 - image 720 x 576 pixels
+# class       centre_x  centre_y  width  height  area_px  area_percent
+functional       266       362    140     139    19445          4.69
+neither          343       283    313     103    32045          7.73
+physical         432       216    247     132    32725          7.89

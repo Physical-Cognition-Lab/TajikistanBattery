@@ -1,0 +1,7 @@
+# Cup1 - image 720 x 576 pixels
+# class       centre_x  centre_y  width  height  area_px  area_percent
+functional       357       176    208      93    19344          4.66
+neither          360       259    151      84    12684          3.06
+neither          360       368    151     102    15402          3.71
+physical         470       310    183     114    20862          5.03
+physical         247       311    190     111    21090          5.09

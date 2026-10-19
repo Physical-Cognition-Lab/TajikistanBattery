@@ -9,12 +9,13 @@ version = "0.1.0"
 python = "3.10.*"
 
 [pypi-dependencies]
-dvst-detox = ">=0.2.1, <0.3"
+dvst-detox = { git = "https://github.com/TommasoGhilardi/DeToX.git", branch = "dev" }
 psychopy = "==2025.1.1"
 tobii-research = ">=2.1.0, <3"
 opencv-python = ">=5.0.0.93, <6"
 
 [tasks]
-hide-and-seek = "python HideAndSeek/HideAndSeek.py"
-what-babies-know = "python WhatBabiesKnow/WhatBabiesKnow.py"
+hide-and-seek = "python -m HideAndSeek.HideAndSeek"
+what-babies-know = "python -m WhatBabiesKnow.WhatBabiesKnow"
 information-gain = "python -m InformationGain.InformationGain"
+features-to-functions = "python -m Features2Functions.Features2Functions"

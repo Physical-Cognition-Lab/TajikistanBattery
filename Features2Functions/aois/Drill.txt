@@ -1,0 +1,5 @@
+# Drill - image 720 x 576 pixels
+# class       centre_x  centre_y  width  height  area_px  area_percent
+functional       197       177    122     114    13908          3.35
+neither          406       247    288     262    75456         18.19
+physical         514       352    190     161    30590          7.38

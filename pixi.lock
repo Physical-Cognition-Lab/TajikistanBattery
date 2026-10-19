@@ -27,6 +27,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/vc-14.5-ha367084_41.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/vc14_runtime-14.51.36247-habf1de7_41.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/vcomp14-14.51.36247-habf1de7_41.conda
+      - pypi: git+https://github.com/TommasoGhilardi/DeToX.git?branch=dev#ee04af0ab94c24518a0daec2d7fc8a8b42caaaa1
       - pypi: https://files.pythonhosted.org/packages/05/7f/798705f5296a58ca505d600456748d1be48078eac8a7050d8a98bc9edb89/decorator-5.3.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/07/bc/587a445451b253b285629263eb51c2d8e9bcea4fc97826266d186f96f558/pyserial-3.5-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/08/06/b8dfcd5509b4c2ee68528a90be91eddfcb1f8c9fab90c0e734841b03fb3c/pyparallel-0.2.2-py3-none-any.whl
@@ -104,7 +105,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/c1/1b/f7ea6cde25621cd9236541c66ff018f4268012a534ec31032bcb187dc5e7/proglog-0.1.12-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c1/8b/5fe2cc11fee489817272089c4203e679c63b570a5aaeb18d852ae3cbba6a/et_xmlfile-2.0.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/c1/d4/59e74daffcb57a07668852eeeb6035af9f32cbfd7a1d2511f17d2fe6a738/smmap-5.0.3-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/c7/4c/cdcdcd520b73cd28cbab073e90d1381dcd55d92f9294b000caa0b496b7ab/dvst_detox-0.2.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/cc/a1/50fccd68a12bcfc27adfc9969c090286670a9109a0259f3f70943390b721/esprima-4.0.1.tar.gz
       - pypi: https://files.pythonhosted.org/packages/ce/b3/3e99a7af1c25e84f68c6c7b16c51b664dd51e12d0bc3d252a48d298e9a08/pyzmq-27.2.0-cp310-cp310-win_amd64.whl
       - pypi: https://files.pythonhosted.org/packages/d0/14/6aec0b5661258aacbb092c88477df57da7f8456081504baa920f79fbe9c1/meshpy-2026.1.1-cp310-cp310-win_amd64.whl
@@ -347,6 +347,13 @@ packages:
     - vcomp14 >=14.51.36247
   size: 155910
   timestamp: 1785359349999
+- pypi: git+https://github.com/TommasoGhilardi/DeToX.git?branch=dev#ee04af0ab94c24518a0daec2d7fc8a8b42caaaa1
+  name: dvst-detox
+  version: 0.2.1
+  requires_dist:
+  - tobii-research
+  - psychopy
+  requires_python: '>=3.10'
 - pypi: https://files.pythonhosted.org/packages/05/7f/798705f5296a58ca505d600456748d1be48078eac8a7050d8a98bc9edb89/decorator-5.3.1-py3-none-any.whl
   name: decorator
   version: 5.3.1
@@ -1381,14 +1388,6 @@ packages:
   version: 5.0.3
   sha256: c106e05d5a61449cf6ba9a1e650227ecfb141590d2a98412103ff35d89fc7b2f
   requires_python: '>=3.7'
-- pypi: https://files.pythonhosted.org/packages/c7/4c/cdcdcd520b73cd28cbab073e90d1381dcd55d92f9294b000caa0b496b7ab/dvst_detox-0.2.1-py3-none-any.whl
-  name: dvst-detox
-  version: 0.2.1
-  sha256: ac656ad189bdbad346807e9aa0b97dfa8253966af99a434401d0c91d5335de8b
-  requires_dist:
-  - tobii-research
-  - psychopy
-  requires_python: '>=3.10'
 - pypi: https://files.pythonhosted.org/packages/cc/a1/50fccd68a12bcfc27adfc9969c090286670a9109a0259f3f70943390b721/esprima-4.0.1.tar.gz
   name: esprima
   version: 4.0.1

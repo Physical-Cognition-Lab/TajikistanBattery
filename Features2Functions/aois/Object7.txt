@@ -1,0 +1,5 @@
+# Object7 - image 720 x 576 pixels
+# class       centre_x  centre_y  width  height  area_px  area_percent
+functional       423       271    325     219    71146         17.16
+neither          388       246    264     151    39886          9.62
+physical         250       305    176     110    19469          4.69
