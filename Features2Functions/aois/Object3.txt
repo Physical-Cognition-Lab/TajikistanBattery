@@ -1,5 +1,6 @@
-# Object3 - image 720 x 576 pixels
-# class       centre_x  centre_y  width  height  area_px  area_percent
-functional       242       210    243     170    41309          9.96
-neither          337       312    187     106    19829          4.78
-physical         499       403    219     105    22974          5.54
+# Object3 - displayed image 1350 x 1080 pixels
+# Image coordinates: origin at top-left; x right, y down.
+# class       centre_x  centre_y     width    height        area_px  area_percent
+functional      453.75    393.75   455.625    318.75  145226.953125          9.96
+neither        631.875       585   350.625    198.75   69711.328125          4.78
+physical       935.625   755.625   410.625   196.875    80767.96875          5.54

@@ -1,7 +1,8 @@
-# Cup1 - image 720 x 576 pixels
-# class       centre_x  centre_y  width  height  area_px  area_percent
-functional       357       176    208      93    19344          4.66
-neither          360       259    151      84    12684          3.06
-neither          360       368    151     102    15402          3.71
-physical         470       310    183     114    20862          5.03
-physical         247       311    190     111    21090          5.09
+# Cup1 - displayed image 1350 x 1080 pixels
+# Image coordinates: origin at top-left; x right, y down.
+# class       centre_x  centre_y     width    height        area_px  area_percent
+functional     669.375       330       390   174.375       68006.25          4.66
+neither            675   485.625   283.125     157.5     44592.1875          3.06
+neither            675       690   283.125    191.25    54147.65625          3.71
+physical        881.25    581.25   343.125    213.75    73342.96875          5.03
+physical       463.125   583.125    356.25   208.125    74144.53125          5.09

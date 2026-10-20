@@ -1,6 +1,7 @@
-# Cup2 - image 720 x 576 pixels
-# class       centre_x  centre_y  width  height  area_px  area_percent
-functional       338       191    118      76     8968          2.16
-neither          342       316    170     155    26350          6.35
-physical         493       288    198     114    22572          5.44
-physical         216       288    199     111    22089          5.33
+# Cup2 - displayed image 1350 x 1080 pixels
+# Image coordinates: origin at top-left; x right, y down.
+# class       centre_x  centre_y     width    height        area_px  area_percent
+functional      633.75   358.125    221.25     142.5      31528.125          2.16
+neither         641.25     592.5    318.75   290.625    92636.71875          6.35
+physical       924.375       540    371.25    213.75     79354.6875          5.44
+physical           405       540   373.125   208.125   77656.640625          5.33

@@ -1,5 +1,6 @@
-# Object8 - image 720 x 576 pixels
-# class       centre_x  centre_y  width  height  area_px  area_percent
-functional       443       403    204     138    28152          6.79
-neither          369       304    112      65     7280          1.76
-physical         254       179    215     182    39130          9.44
+# Object8 - displayed image 1350 x 1080 pixels
+# Image coordinates: origin at top-left; x right, y down.
+# class       centre_x  centre_y     width    height        area_px  area_percent
+functional     830.625   755.625     382.5    258.75      98971.875          6.79
+neither        691.875       570       210   121.875       25593.75          1.76
+physical        476.25   335.625   403.125    341.25   137566.40625          9.44

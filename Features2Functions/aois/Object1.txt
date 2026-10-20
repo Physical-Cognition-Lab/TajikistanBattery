@@ -1,5 +1,6 @@
-# Object1 - image 720 x 576 pixels
-# class       centre_x  centre_y  width  height  area_px  area_percent
-functional       365       393    219     217    47523         11.46
-neither          362       238    193      96    18528          4.47
-physical         358       132    214     122    26108          6.30
+# Object1 - displayed image 1350 x 1080 pixels
+# Image coordinates: origin at top-left; x right, y down.
+# class       centre_x  centre_y     width    height        area_px  area_percent
+functional     684.375   736.875   410.625   406.875  167073.046875         11.46
+neither         678.75    446.25   361.875       180        65137.5          4.47
+physical        671.25     247.5    401.25    228.75     91785.9375          6.30

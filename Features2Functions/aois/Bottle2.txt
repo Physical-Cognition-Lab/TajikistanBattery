@@ -1,5 +1,6 @@
-# Bottle2 - image 720 x 576 pixels
-# class       centre_x  centre_y  width  height  area_px  area_percent
-functional       244       165    166     140    23182          5.59
-neither          330       241    150      90    13431          3.24
-physical         419       336    248     159    39359          9.49
+# Bottle2 - displayed image 1350 x 1080 pixels
+# Image coordinates: origin at top-left; x right, y down.
+# class       centre_x  centre_y     width    height        area_px  area_percent
+functional       457.5   309.375    311.25     262.5    81499.21875          5.59
+neither         618.75   451.875    281.25    168.75   47218.359375          3.24
+physical       785.625       630       465   298.125  138371.484375          9.49

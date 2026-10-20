@@ -1,5 +1,6 @@
-# Object7 - image 720 x 576 pixels
-# class       centre_x  centre_y  width  height  area_px  area_percent
-functional       423       271    325     219    71146         17.16
-neither          388       246    264     151    39886          9.62
-physical         250       305    176     110    19469          4.69
+# Object7 - displayed image 1350 x 1080 pixels
+# Image coordinates: origin at top-left; x right, y down.
+# class       centre_x  centre_y     width    height        area_px  area_percent
+functional     793.125   508.125   609.375   410.625   250122.65625         17.16
+neither          727.5    461.25       495   283.125   140224.21875          9.62
+physical        468.75   571.875       330    206.25   68445.703125          4.69

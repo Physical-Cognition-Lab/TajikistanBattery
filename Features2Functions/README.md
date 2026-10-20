@@ -7,6 +7,10 @@ participant's object set, order and starting attention getter.
 
 Run from the repository root: `pixi run features-to-functions`.
 
+Object pictures are displayed at a fixed **1350 × 1080 pixels**. The
+[AOI files](aois/README.md) use this displayed size, with image-relative
+coordinates measured from the image's top-left corner.
+
 ## Flow
 
 ```text

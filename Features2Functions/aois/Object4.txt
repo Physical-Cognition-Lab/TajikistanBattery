@@ -1,5 +1,6 @@
-# Object4 - image 720 x 576 pixels
-# class       centre_x  centre_y  width  height  area_px  area_percent
-functional       510       212     97      96     9312          2.25
-physical         302       159    282     156    43992         10.61
-physical         306       364    232     227    52664         12.70
+# Object4 - displayed image 1350 x 1080 pixels
+# Image coordinates: origin at top-left; x right, y down.
+# class       centre_x  centre_y     width    height        area_px  area_percent
+functional      956.25     397.5   181.875       180        32737.5          2.25
+physical        566.25   298.125    528.75     292.5     154659.375         10.61
+physical        573.75     682.5       435   425.625     185146.875         12.70

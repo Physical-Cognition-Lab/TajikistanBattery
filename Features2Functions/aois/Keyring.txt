@@ -1,4 +1,5 @@
-# Keyring - image 720 x 576 pixels
-# class       centre_x  centre_y  width  height  area_px  area_percent
-functional       298       282    343     257    88151         21.26
-physical         485       240    205     128    26240          6.33
+# Keyring - displayed image 1350 x 1080 pixels
+# Image coordinates: origin at top-left; x right, y down.
+# class       centre_x  centre_y     width    height        area_px  area_percent
+functional      558.75    528.75   643.125   481.875  309905.859375         21.26
+physical       909.375       450   384.375       240          92250          6.33

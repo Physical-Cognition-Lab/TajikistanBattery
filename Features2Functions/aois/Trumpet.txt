@@ -1,6 +1,7 @@
-# Trumpet - image 720 x 576 pixels
-# class       centre_x  centre_y  width  height  area_px  area_percent
-functional       552       266    162     105    17010          4.10
-neither          330       324    148      99    14652          3.53
-physical         323       252    123      52     6396          1.54
-physical         156       278    114      49     5586          1.35
+# Trumpet - displayed image 1350 x 1080 pixels
+# Image coordinates: origin at top-left; x right, y down.
+# class       centre_x  centre_y     width    height        area_px  area_percent
+functional        1035    498.75    303.75   196.875    59800.78125          4.10
+neither         618.75     607.5     277.5   185.625     51510.9375          3.53
+physical       605.625     472.5   230.625      97.5     22485.9375          1.54
+physical         292.5    521.25    213.75    91.875    19638.28125          1.35

@@ -1,5 +1,6 @@
-# Trowel2 - image 720 x 576 pixels
-# class       centre_x  centre_y  width  height  area_px  area_percent
-functional       251       142    259     190    49203         11.86
-neither          343       265    119      77     9185          2.21
-physical         446       396    283     154    43513         10.49
+# Trowel2 - displayed image 1350 x 1080 pixels
+# Image coordinates: origin at top-left; x right, y down.
+# class       centre_x  centre_y     width    height        area_px  area_percent
+functional     470.625    266.25   485.625    356.25  172979.296875         11.86
+neither        643.125   496.875   223.125   144.375   32291.015625          2.21
+physical        836.25     742.5   530.625    288.75  152975.390625         10.49

@@ -1,5 +1,6 @@
-# Spoon - image 720 x 576 pixels
-# class       centre_x  centre_y  width  height  area_px  area_percent
-functional       210       288    132     127    16764          4.04
-neither          302       284    103      73     7519          1.81
-physical         455       281    247      76    18772          4.53
+# Spoon - displayed image 1350 x 1080 pixels
+# Image coordinates: origin at top-left; x right, y down.
+# class       centre_x  centre_y     width    height        area_px  area_percent
+functional      393.75       540     247.5   238.125     58935.9375          4.04
+neither         566.25     532.5   193.125   136.875   26433.984375          1.81
+physical       853.125   526.875   463.125     142.5     65995.3125          4.53

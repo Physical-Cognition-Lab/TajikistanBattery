@@ -1,5 +1,6 @@
-# Pacifier2 - image 720 x 576 pixels
-# class       centre_x  centre_y  width  height  area_px  area_percent
-functional       224       328    119     113    13419          3.24
-neither          306       315    223     118    26355          6.35
-physical         402       291    313     275    85987         20.73
+# Pacifier2 - displayed image 1350 x 1080 pixels
+# Image coordinates: origin at top-left; x right, y down.
+# class       centre_x  centre_y     width    height        area_px  area_percent
+functional         420       615   223.125   211.875   47176.171875          3.24
+neither         573.75   590.625   418.125    221.25   92654.296875          6.35
+physical        753.75   545.625   586.875   515.625  302298.046875         20.73

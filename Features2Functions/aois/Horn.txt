@@ -1,5 +1,6 @@
-# Horn - image 720 x 576 pixels
-# class       centre_x  centre_y  width  height  area_px  area_percent
-functional       290       235    165     153    25251          6.09
-neither          375       287    137      80    10944          2.64
-physical         444       347    155     138    21421          5.17
+# Horn - displayed image 1350 x 1080 pixels
+# Image coordinates: origin at top-left; x right, y down.
+# class       centre_x  centre_y     width    height        area_px  area_percent
+functional      543.75   440.625   309.375   286.875   88773.046875          6.09
+neither        703.125   538.125   256.875       150          38475          2.64
+physical         832.5   650.625   290.625    258.75   75308.203125          5.17
