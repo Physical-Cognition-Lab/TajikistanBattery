@@ -86,7 +86,7 @@ def present(win, image_path, seconds, trigger, trial_number, stimulus_name, soun
     image = visual.ImageStim(
         win,
         image=str(image_path),
-        size=(win.size[1] * 1.25, win.size[1]),  # the pictures are 4:3
+        size=(1350, 1080),  # Fixed 5:4 picture size, in pixels.
         units="pix",
     )
     image.draw()
@@ -110,7 +110,7 @@ def present(win, image_path, seconds, trigger, trial_number, stimulus_name, soun
 
 def present_attention_getter(win, movie_path, seconds, trial_number, name, sound_path=None):
     """Play one attention getter for `seconds` and log its onset and offset."""
-    size = (win.size[1] * 1.25, win.size[1])  # the getters are 4:3 like the pictures
+    size = (1350, 1080)  # Fixed 5:4 video size, in pixels.
     movie = visual.MovieStim(
         win,
         filename=str(movie_path),
@@ -230,7 +230,6 @@ OBJECT_SETS = {
 ATTENTION_GETTERS = ["spinning_wedge", "shattering_hexagon", "morphing_quarters"]
 
 ## General
-WIN_SIZE = (1920, 1080)
 
 
 # Set while a session records, so save_event can also write to the video.
@@ -239,6 +238,9 @@ recorder = None
 # ------------------------------ Run ------------------------------
 
 if __name__ == "__main__":
+    from utils.display_settings import enable_native_pixels
+
+    enable_native_pixels()
     # Imports
     # The webcam worker re-runs this file; it does not need the study libraries.
     from psychopy import visual, core, event, sound
@@ -246,10 +248,12 @@ if __name__ == "__main__":
     from utils.subject_selection import get_participant
     from utils.data_saving import write_json
     from utils.pause_video import show_pause_video
+    from utils.display_settings import DisplaySettings
 
     # Participant setup
+    display = DisplaySettings.detect()
     subject_id, _, recording, tracker_checked, recalibrate = get_participant(
-        data_dir, recording=True, eye_tracker=True,
+        data_dir, recording=True, eye_tracker=True, display=display,
     )
 
     # The participant's assignment fixes the object set and
@@ -323,8 +327,13 @@ if __name__ == "__main__":
 
     # Registered cleanup runs on normal exit, Esc, or an exception (last added first).
     with ExitStack() as cleanup:
-        win = visual.Window(WIN_SIZE, fullscr=True, color=ORANGE, colorSpace="rgb255", units="pix")
+        win = visual.Window(
+            size=display.size, screen=display.screen, fullscr=True,
+            color=ORANGE, colorSpace="rgb255", units="pix",
+        )
         cleanup.callback(win.close)
+        sequence["display"] = display.metadata(win)
+        save_data(subject_dir)
 
         if tracker_checked:
             from DeToX import ETracker

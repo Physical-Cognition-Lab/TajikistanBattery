@@ -20,14 +20,18 @@ Try the window on its own with:
 
 from pathlib import Path
 
+from .display_settings import enable_native_pixels
+
+enable_native_pixels()
+
 from psychopy import core, gui
 
 
 # --------------------------- Look, edit to taste ---------------------------------
-FONT_SIZE = 30          # point size for the whole dialog (labels, field, buttons)
-MIN_WIDTH = 900         # the dialog is at least this wide (pixels)
-FIELD_HEIGHT = 80       # height of the participant-number box (pixels)
-CHECKBOX_SIZE = 44      # size of the tick box under the number (pixels)
+FONT_SIZE = 20          # point size for the whole dialog (labels, field, buttons)
+MIN_WIDTH = 760         # the dialog is at least this wide (pixels)
+FIELD_HEIGHT = 56       # height of the participant-number box (pixels)
+CHECKBOX_SIZE = 28      # size of the tick box under the number (pixels)
 WARNING_FONT_SIZE = 24  # the "check the number" pop-up
 EYE_TRACKER_FONT_SIZE = 18  # supporting status messages and connection instructions
 
@@ -74,9 +78,9 @@ def _only_ok(dlg):
 
 
 def _build_dialog(next_number, recording, recording_label, eye_tracker=None,
-                  recalibrate=True):
+                  recalibrate=True, display=None):
     """Create the participant dialog, with an optional Tobii connection check."""
-    dlg = gui.Dlg(title="StatLearning", alwaysOnTop=True)
+    dlg = gui.Dlg(title="Study setup", alwaysOnTop=True)
     _enlarge(dlg, FONT_SIZE, MIN_WIDTH)
 
     field = dlg.addField("Participant number:", initial=str(next_number))
@@ -121,8 +125,20 @@ def _build_dialog(next_number, recording, recording_label, eye_tracker=None,
         status.setWordWrap(True)
         dlg.tracker_check = EyeTrackerCheck(dlg, check, status, _eye_tracker_warning)
 
+    if display is not None and gui.haveQt:
+        from .display_settings import add_display_section
+
+        add_display_section(dlg, display)
+        dlg.layout.setContentsMargins(24, 20, 24, 20)
+        dlg.layout.setVerticalSpacing(12)
+        dlg.okBtn.setText("Continue")
+        for button in (dlg.okBtn, dlg.cancelBtn):
+            button.setMinimumHeight(44)
+            button.setMinimumWidth(130)
+
     # Remove the message about required asterisks
     dlg.requiredMsg.setText("")
+    dlg.requiredMsg.hide()
 
     return dlg
 
@@ -174,8 +190,8 @@ def _eye_tracker_warning(message):
 
 
 def get_participant(data_dir, recording=RECORDING_DEFAULT,
-                    recording_label=RECORDING_LABEL, eye_tracker=None,
-                    recalibrate=True):
+                     recording_label=RECORDING_LABEL, eye_tracker=None,
+                     recalibrate=True, display=None):
     """Ask which participant this session belongs to.
 
     ``recording`` sets the checkbox under the number field; the operator can
@@ -184,6 +200,9 @@ def get_participant(data_dir, recording=RECORDING_DEFAULT,
     a Tobii tracker is required before continuing. ``recalibrate`` sets the
     nested checkbox's starting state. It is disabled when eye tracking is off.
     No calibration or gaze recording is started here.
+
+    ``display`` is a DisplaySettings instance shared with the study. The operator
+    can select its participant monitor without changing the returned tuple.
 
     Creates Data/Sxxx only after validation and returns
     ``(subject_id, subjnum, recording, tracker_checked, recalibrate)``.
@@ -215,7 +234,7 @@ def get_participant(data_dir, recording=RECORDING_DEFAULT,
     # Keep asking until a valid, unused number is entered
     while True:
         dlg = _build_dialog(next_number, recording, recording_label, eye_tracker,
-                            recalibrate)
+                            recalibrate, display)
         selection = dlg.show()
 
         # End the script if the user clicks Cancel
@@ -275,6 +294,7 @@ def get_participant(data_dir, recording=RECORDING_DEFAULT,
 if __name__ == "__main__":
     # A throwaway folder so the demo never touches real study data.
     import tempfile
+    from .display_settings import DisplaySettings
 
     demo_dir = Path(tempfile.gettempdir()) / "subject_dialog_demo_data"
     demo_dir.mkdir(parents=True, exist_ok=True)
@@ -282,7 +302,7 @@ if __name__ == "__main__":
         (demo_dir / f"S{existing_subject:03d}").mkdir(exist_ok=True)
 
     chosen_id, chosen_number, chosen_recording, tracker_checked, recalibrate = get_participant(
-        demo_dir, eye_tracker=False,
+        demo_dir, eye_tracker=False, display=DisplaySettings.detect(),
     )
     print(f"Chosen: {chosen_id} (number {chosen_number}), "
           f"recording={chosen_recording}, tracker_checked={tracker_checked}, "

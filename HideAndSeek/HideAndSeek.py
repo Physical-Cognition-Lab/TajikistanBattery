@@ -336,7 +336,7 @@ study_dir = Path("HideAndSeek")
 data_dir = study_dir / "Data"
 stimuli_dir = study_dir / "Stimuli"
 assignments_file = stimuli_dir / "participant_assignments.csv"
-WIN_SIZE = (1280, 720)
+WIN_SIZE = (1920, 1080)
 
 ### Stimuli
 
@@ -389,6 +389,9 @@ recorder = None
 # ------------------------------ Run ------------------------------
 
 if __name__ == "__main__":
+    from utils.display_settings import enable_native_pixels
+
+    enable_native_pixels()
     # Imports
     # The webcam worker re-runs this file; it does not need the study libraries.
     import psychopy
@@ -398,11 +401,13 @@ if __name__ == "__main__":
     from utils.subject_selection import get_participant
     from utils.data_saving import write_json
     from utils.pause_video import show_pause_video
+    from utils.display_settings import DisplaySettings
 
     # Participant setup
     # Keep this clock running through the dialog, as in existing session logs.
     study_clock = core.Clock()
-    subject_id, subjnum, recording, _, _ = get_participant(data_dir)
+    display = DisplaySettings.detect()
+    subject_id, subjnum, recording, _, _ = get_participant(data_dir, display=display)
     subject_dir = data_dir / subject_id
     print(f"Preparing HideAndSeek for participant {subject_id}.", flush=True)
 
@@ -450,10 +455,15 @@ if __name__ == "__main__":
     # Window and stimuli
     # Registered cleanup runs on normal exit, Esc, or an exception (last added first).
     with ExitStack() as cleanup:
-        win = visual.Window(size=WIN_SIZE, fullscr=False, units="height", color="black")
+        win = visual.Window(
+            size=display.size, screen=display.screen, fullscr=True,
+            units="height", color="black",
+        )
         cleanup.callback(win.close)
         # Record the size actually used: it can differ from the requested one.
         session["window_size"] = [int(win.size[0]), int(win.size[1])]
+        session["display"] = display.metadata(win)
+        save_data(subject_dir)
 
         # Load the fixed scene.
         stimuli = {
@@ -478,7 +488,7 @@ if __name__ == "__main__":
             cue = visual.ImageStim(win, image=str(files["cue"]),
                                    pos=(0, -0.1), size=(0.15, 0.2))
             portrait = visual.ImageStim(win, image=str(files["portrait"]),
-                                        pos=portrait_positions[colour], size=(0.16428, 0.2))
+                                         pos=portrait_positions[colour], size=(0.16428, 0.2))
             animation = [
                 visual.ImageStim(win, image=str(path), size=(0.1, 0.1))
                 for path in files["animation"]

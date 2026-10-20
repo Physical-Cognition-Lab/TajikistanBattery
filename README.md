@@ -52,8 +52,8 @@ recording startup. See [VIDEO_WORKER_STARTUP.md](utils/VIDEO_WORKER_STARTUP.md).
 Keep changes simple and readable. Shared functionality belongs in `utils/`;
 study-specific behaviour stays in the study script.
 
-All studies use `study_dir` and `WIN_SIZE` for their main paths and window size,
-`pause_study(win)` (True means stop), and `save_data(subject_dir)`. Each keeps
+All studies use `study_dir` for their main paths, `pause_study(win)` (True means
+stop), and `save_data(subject_dir)`. Each keeps
 its own output format; the shared JSON writer protects the previous save if a
 new write fails.
 
@@ -74,6 +74,12 @@ pixi run what-babies-know
 
 The desktop shortcuts in `Shorcuts/` launch the same tasks. The first run may
 take longer while pixi installs the environment.
+
+> **Display warning:** These studies use specific stimulus sizes and positions,
+> with no automatic layout fitting. Use a 1920 × 1080 screen for HideAndSeek;
+> the other studies are set up for 1920 × 1080 or 1920 × 1200 screens.
+> If you change the screen resolution or stimulus dimensions, check the layout
+> and click locations in a practice run before collecting data.
 
 ## Participant setup
 

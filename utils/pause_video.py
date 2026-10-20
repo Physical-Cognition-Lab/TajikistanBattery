@@ -11,9 +11,7 @@ def show_pause_video(win, save_event):
         units="pix", loop=True, autoStart=False,
     )
     try:
-        width, height = movie.frameSize
-        scale = min(win.size[0] / width, win.size[1] / height)
-        movie.size = (width * scale, height * scale)
+        movie.size = (1920, 1080)  # Fixed 16:9 break video size, in pixels.
         event.clearEvents(eventType="keyboard")
         print("Study paused: video playing. X = continue study.", flush=True)
         save_event("attgrabber")

@@ -142,7 +142,6 @@ stimuli_dir = study_dir / "Stimuli"
 
 ## General
 N_BLOCKS = 3
-WIN_SIZE = (1920, 1080)
 MOVIE_BACKGROUNDS = {"GazeFollowing": "#EDEDED", "Geometry": "#FFFFFF"}
 
 
@@ -152,6 +151,9 @@ recorder = None
 # ------------------------------ Run ------------------------------
 
 if __name__ == "__main__":
+    from utils.display_settings import enable_native_pixels
+
+    enable_native_pixels()
     # Imports
     # The webcam worker re-runs this file; it does not need the study libraries.
     from psychopy import visual, core, event
@@ -159,10 +161,12 @@ if __name__ == "__main__":
     from utils.subject_selection import get_participant
     from utils.data_saving import write_json
     from utils.pause_video import show_pause_video
+    from utils.display_settings import DisplaySettings
 
     # Participant setup
+    display = DisplaySettings.detect()
     subject_id, subjnum, recording, tracker_checked, recalibrate = get_participant(
-        data_dir, recording=True, eye_tracker=True,
+        data_dir, recording=True, eye_tracker=True, display=display,
     )
 
     # The participant dialog has already created this folder after its checks.
@@ -190,8 +194,13 @@ if __name__ == "__main__":
 
     # Registered cleanup runs on normal exit, Esc, or an exception (last added first).
     with ExitStack() as cleanup:
-        win = visual.Window(WIN_SIZE, fullscr=True, color="black", units="pix")
+        win = visual.Window(
+            size=display.size, screen=display.screen, fullscr=True,
+            color="black", units="pix",
+        )
         cleanup.callback(win.close)
+        sequence["display"] = display.metadata(win)
+        save_data(subject_dir)
         movie_cleanup = ExitStack()
         cleanup.callback(movie_cleanup.close)
 

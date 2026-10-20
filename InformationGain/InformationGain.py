@@ -272,7 +272,6 @@ data_dir = study_dir / "Data"
 stimuli_dir = study_dir / "Stimuli"
 
 # Window size in pixels, matching the eye-tracking display
-WIN_SIZE = (1280, 720)
 
 # Where the cue appears: the centre of the screen
 cue_loc = [0, 0]
@@ -298,6 +297,9 @@ recorder = None
 # ------------------------------ Run ------------------------------
 
 if __name__ == "__main__":
+    from utils.display_settings import enable_native_pixels
+
+    enable_native_pixels()
     # Imports
     # The webcam worker re-runs this file; it does not need the study libraries.
     import numpy as np
@@ -308,10 +310,12 @@ if __name__ == "__main__":
 
     from utils.subject_selection import get_participant
     from utils.data_saving import write_json
+    from utils.display_settings import DisplaySettings
 
     # Participant setup
+    display = DisplaySettings.detect(preferred=1)
     subject_id, subjnum, recording, tracker_checked, recalibrate = get_participant(
-        data_dir, recording=True, eye_tracker=True,
+        data_dir, recording=True, eye_tracker=True, display=display,
     )
     subject_dir = data_dir / subject_id
 
@@ -322,12 +326,12 @@ if __name__ == "__main__":
     sequences = pd.read_csv(stimuli_dir / "sequences_t.csv", header=None).transpose()
     sequence_count = len(sequences.columns)
 
-    # Four positions, one per screen quadrant
+    # Fixed pixel positions for the 1920 × 1080 layout, relative to screen center.
     targ_loc = np.array([
-        [-(WIN_SIZE[0] * .8 - WIN_SIZE[0] / 2), WIN_SIZE[1] * .8 - WIN_SIZE[1] / 2],
-        [WIN_SIZE[0] * .8 - WIN_SIZE[0] / 2, WIN_SIZE[1] * .8 - WIN_SIZE[1] / 2],
-        [-(WIN_SIZE[0] * .8 - WIN_SIZE[0] / 2), -(WIN_SIZE[1] * .8 - WIN_SIZE[1] / 2)],
-        [WIN_SIZE[0] * .8 - WIN_SIZE[0] / 2, -(WIN_SIZE[1] * .8 - WIN_SIZE[1] / 2)],
+        [-576, 324],
+        [576, 324],
+        [-576, -324],
+        [576, -324],
     ])
 
     # Rotate them with the participant number, so that over participants every
@@ -344,8 +348,10 @@ if __name__ == "__main__":
     # Window and stimuli
     # Registered cleanup runs on normal exit, Esc, or an exception (last added first).
     with ExitStack() as cleanup:
-        win = visual.Window(WIN_SIZE, screen=1, fullscr=tracker_checked, color=(1, 1, 1),
-                            units="pix", waitBlanking=True)
+        win = visual.Window(
+            size=display.size, screen=display.screen, fullscr=True,
+            color="black", units="pix", waitBlanking=True,
+        )
         cleanup.callback(win.close)
 
         ## Session bookkeeping
@@ -368,14 +374,16 @@ if __name__ == "__main__":
             "study": "InformationGain",
             "psychopy": psychopy.__version__,
             "window_size": [int(win.size[0]), int(win.size[1])],
+            "display": display.metadata(win),
             "started": datetime.now().isoformat(timespec="seconds"),
             "ended": None,
             "completed": False,
             "timing_issue": False,
         }
+        save_data(subject_dir)
 
         ## Stimuli
-        background = visual.ImageStim(win, units="pix", size=WIN_SIZE,
+        background = visual.ImageStim(win, units="pix", size=(1920, 1080),
                                       image=str(stimuli_dir / "background.jpg"))
         speaker = SpeakerDevice(index=13)  # lab machine only
         background_sound = sound.Sound(str(stimuli_dir / "hothothot_long.wav"),
@@ -393,7 +401,7 @@ if __name__ == "__main__":
         stimuli = [
             [
                 visual.ImageStim(win, units="pix",
-                                 size=(200 * WIN_SIZE[0] / 1920,) * 2,
+                                 size=(200, 200),
                                  image=str(image))
                 for image in sorted(directory.iterdir())
                 if image.suffix.lower() in IMAGE_SUFFIXES
