@@ -126,10 +126,28 @@ Some intervals are already part of the movies and must not be added again:
 
 ### Playback and operator-controlled pauses
 
+All movies are centered. Relations videos (both Neutral and Violation) are
+enlarged proportionally from 1280 × 720 to a fixed **1920 × 1080 pixels**, matching
+their fit-to-screen presentation on the assumed original 1920 × 1080 display.
+This is not a fit to the current screen: on a 1920 × 1200 display, they leave
+60-pixel black margins above and below. There is no stretching or cropping,
+and the original video files are unchanged.
+
+All other categories retain their native pixel dimensions:
+
+| Category | Display size (width × height, pixels) |
+|---|---|
+| GazeFollowing | 1440 × 1080 |
+| ObjectRepresentation | 1440 × 1080 |
+| ActionPrediction | 1920 × 1080 |
+| Geometry | 1440 × 1080 |
+| ANS_easy and ANS_hard | 1920 × 1080 |
+| All attention grabbers | 1080 × 1080 |
+
 During movie playback, exposed screen areas match the original design:
 GazeFollowing uses light gray (`#EDEDED`), Geometry uses white (`#FFFFFF`),
 and all other categories use black. A full-window background is drawn behind
-each movie frame without resizing the movie or changing its contents. Preparation
+each movie frame independently of the movie's display size. Preparation
 screens, inter-movie gaps, the opening screen and pause screens remain black.
 
 `prepare_block()` loads the block's 18 movie players in saved CSV order, with

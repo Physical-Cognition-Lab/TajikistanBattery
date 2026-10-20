@@ -87,7 +87,8 @@ def prepare_block(win, block, movie_cleanup):
             )
             movie_cleanup.callback(movie.unload)
             # PsychoPy 2025.1.1 defaults to a square, not the movie's dimensions.
-            movie.size = movie.frameSize
+            # Relations fitted the original 1920 x 1080 screen; keep that size.
+            movie.size = (1920, 1080) if category["name"] == "Relations" else movie.frameSize
             trials.append((category["name"], filename, movie, background))
 
     # Upload the initial frames while paused, without showing these previews.
