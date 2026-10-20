@@ -34,7 +34,16 @@ Shared code lives in `utils/`:
 - `video_recording/` — webcam recording in a separate process.
 
 `pixi.toml` defines the environment and launch commands; `pixi.lock` pins package
-versions. The project uses Python 3.10 and PsychoPy 2025.1.1.
+versions. The project uses Python 3.10 and a tested PsychoPy development snapshot
+(`ba68a2738c3795c3f2b930571c91324a8cdadc81`, reporting version 2027.1.0),
+with pyglet 2 and PyAV movie playback. PsychoPy and DeToX are pinned to exact Git
+commits so installing the project does not pull an untested branch update.
+
+The snapshot passed a 54-movie playback diagnostic with every source frame
+submitted, including final frames, and short study-control tests with webcam
+recording. Movie presentations still lasted about 42–63 ms longer than their
+encoded durations; physical audio/video timing and eye tracking need validation
+on the collection setup. Keep the pinned versions when reproducing these tests.
 
 ## Script structure
 

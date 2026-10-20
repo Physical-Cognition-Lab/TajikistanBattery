@@ -18,18 +18,23 @@ against the originals).
 
 ## attention/
 
-The three attention getters, played for 2 s before every stimulus, one sound
-each:
+The three attention getters, played for 2 s before every stimulus, each with
+its sound embedded in the MP4:
 
-- `spinning_wedge.mp4` + `.wav` — a disc with a wedge rotating around it
-- `shattering_hexagon.mp4` + `.wav` — a hexagon breaking into shards and reforming
-- `morphing_quarters.mp4` + `.wav` — four quarter circles converging and dividing
+- `spinning_wedge.mp4` — a disc with a wedge rotating around it
+- `shattering_hexagon.mp4` — a hexagon breaking into shards and reforming
+- `morphing_quarters.mp4` — four quarter circles converging and dividing
 
 Each clip is exactly 2.000 s, 720x576 (4:3, so it is scaled like the pictures),
 30 fps, and its shapes are drawn on the study's exact orange (248,169,122) with
 the original white background keyed out. Nothing flashes at the picture
-boundary. The sounds are the attention getter sounds from the old Blob study;
-swap them for different ones if you like.
+boundary. The sounds are the attention getter sounds from the old Blob study,
+encoded as AAC starting at the beginning of each movie, with silence after the
+sound finishes to keep the audio track at 2 s. The video streams were copied
+without re-encoding. The study does not play separate WAV files.
+
+`old/` preserves the three original silent MP4s and their matching WAVs unchanged.
+These archived files are not used by the study.
 
 `attention_candidates/` next to this folder is the review area where the clips
 were chosen from. The study does not use it.

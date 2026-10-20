@@ -108,8 +108,8 @@ def present(win, image_path, seconds, trigger, trial_number, stimulus_name, soun
     save_event(trigger + "_offset", trial_number, stimulus_name)
 
 
-def present_attention_getter(win, movie_path, seconds, trial_number, name, sound_path=None):
-    """Play one attention getter for `seconds` and log its onset and offset."""
+def present_attention_getter(win, movie_path, seconds, trial_number, name):
+    """Play an attention getter with embedded audio and log onset and offset."""
     size = (1350, 1080)  # Fixed 5:4 video size, in pixels.
     movie = visual.MovieStim(
         win,
@@ -128,15 +128,8 @@ def present_attention_getter(win, movie_path, seconds, trial_number, name, sound
             lineColor=ORANGE, lineColorSpace="rgb255",
             fillColor=None, lineWidth=6, units="pix",
         )
-        getter_sound = None
-        if sound_path is not None:
-            getter_sound = sound.Sound(str(sound_path))
-            cleanup.callback(getter_sound.stop)
-
         movie.play()
         win.callOnFlip(save_event, "attention_onset", trial_number, name)
-        if getter_sound is not None:
-            win.callOnFlip(getter_sound.play)
 
         # Play for the full attention getter time, or until the clip ends.
         timer = core.Clock()
@@ -145,8 +138,6 @@ def present_attention_getter(win, movie_path, seconds, trial_number, name, sound
             edge_frame.draw()
             win.flip()
 
-        if getter_sound is not None:
-            getter_sound.stop()
         save_event("attention_offset", trial_number, name)
 
 
@@ -160,9 +151,8 @@ def missing_assets(object_set):
                 missing.append(f"objects/{name}.png")
 
     for getter in ATTENTION_GETTERS:
-        for extension in (".mp4", ".wav"):
-            if not (attention_dir / f"{getter}{extension}").exists():
-                missing.append(f"attention/{getter}{extension}")
+        if not (attention_dir / f"{getter}.mp4").exists():
+            missing.append(f"attention/{getter}.mp4")
 
     if not music_files:
         missing.append("music/background.<wav|mp3|ogg>")
@@ -226,7 +216,7 @@ OBJECT_SETS = {
 }
 
 # The three attention getters take turns, one before every stimulus. Each one
-# is a two second video already drawn on the same orange as the pictures.
+# is a two second video with embedded audio, drawn on the same orange as the pictures.
 ATTENTION_GETTERS = ["spinning_wedge", "shattering_hexagon", "morphing_quarters"]
 
 ## General
@@ -392,7 +382,6 @@ if __name__ == "__main__":
                 # Attention getter, then the object itself.
                 present_attention_getter(
                     win, attention_dir / f"{getter}.mp4", ATTENTION_SECONDS, trial_number, getter,
-                    sound_path=attention_dir / f"{getter}.wav",
                 )
                 present(win, objects_dir / f"{name}.png", STIMULUS_SECONDS, "stimulus", trial_number, name)
                 save_event("trial_end", trial_number, name)

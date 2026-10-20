@@ -306,7 +306,6 @@ if __name__ == "__main__":
     import pandas as pd
     import psychopy
     from psychopy import core, event, sound, visual
-    from psychopy.hardware.speaker import SpeakerDevice
 
     from utils.subject_selection import get_participant
     from utils.data_saving import write_json
@@ -385,9 +384,8 @@ if __name__ == "__main__":
         ## Stimuli
         background = visual.ImageStim(win, units="pix", size=(1920, 1080),
                                       image=str(stimuli_dir / "background.jpg"))
-        speaker = SpeakerDevice(index=13)  # lab machine only
         background_sound = sound.Sound(str(stimuli_dir / "hothothot_long.wav"),
-                                       speaker=speaker, volume=1.0)
+                                       volume=1.0)
         cleanup.callback(background_sound.stop)
 
         # Images: the folders come in numbered cue/target pairs, 01_StarCue,

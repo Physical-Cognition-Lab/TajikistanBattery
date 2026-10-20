@@ -25,7 +25,12 @@ class DisplaySettings:
     def detect(cls, preferred=0):
         import pyglet
 
-        screens = pyglet.canvas.get_display().get_screens()
+        # pyglet 2 renamed canvas to display; keep compatibility with pyglet 1.
+        if hasattr(pyglet, "display"):
+            from pyglet import display
+        else:
+            from pyglet import canvas as display
+        screens = display.get_display().get_screens()
         sizes = [(int(screen.width), int(screen.height)) for screen in screens]
         if not sizes:
             raise RuntimeError("No participant display was detected.")
