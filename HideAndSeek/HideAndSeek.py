@@ -18,15 +18,21 @@ def scene_position(x, y, size, scale):
             (y - height / 2) / (height * scale))
 
 
+def set_view_scale(win, scale):
+    """Apply the scale before drawing, not after the next flip."""
+    win.viewScale = scale
+    win.setDefaultView(clearDepth=False)
+
+
 @contextmanager
 def unscaled_view(win):
     """Pixel-sized operator messages and break videos need no scene scaling."""
     saved_scale = win.viewScale
-    win.viewScale = (1, 1)
     try:
+        set_view_scale(win, (1, 1))
         yield
     finally:
-        win.viewScale = saved_scale
+        set_view_scale(win, saved_scale)
 
 
 def load_text(path):
@@ -497,7 +503,7 @@ if __name__ == "__main__":
         # uniformly to preserve its original 16:9 layout on a taller display.
         # At 1920x1200 this is 0.9: 1920x1080 with 60px black bars top/bottom.
         scale = scene_scale(win.size)
-        win.viewScale = (scale, scale)
+        set_view_scale(win, (scale, scale))
         # Record the size actually used: it can differ from the requested one.
         session["window_size"] = [int(win.size[0]), int(win.size[1])]
         session["display"] = display.metadata(win)
