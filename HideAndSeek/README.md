@@ -14,6 +14,20 @@ holds 400 subjects. Extend it with
 existing rows never change, because a row depends only on the master seed and
 the subject number.
 
+## Display
+
+The original 16:9 scene is fitted uniformly inside the native fullscreen window,
+without stretching. At 1920 × 1080 it is unchanged; at 1920 × 1200 it occupies
+1920 × 1080, with 60-pixel black bars above and below. Touches are converted back
+to the original scene coordinates before hit-testing and saving. Bar touches
+are logged as misses and cannot submit predictions. Display metadata records
+the actual window size, scene scale, and scene size.
+
+Operator pause messages and the pixel-sized break video are not scene-scaled.
+Before collecting data, check the extreme reveal positions and touch alignment
+on the participant screen; fitting preserves the original layout, including
+any clipping already present in that layout.
+
 ## Flow
 
 ```text

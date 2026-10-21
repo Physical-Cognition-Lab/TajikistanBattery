@@ -1,9 +1,33 @@
-from contextlib import ExitStack, nullcontext
+from contextlib import ExitStack, contextmanager, nullcontext
 import csv
 from datetime import datetime
 from pathlib import Path
 
 # ------------------------------ Helper functions ------------------------------
+
+def scene_scale(size):
+    """Fit the original 16:9 scene inside the screen without stretching it."""
+    width, height = size
+    return min(1.0, width / (height * SCENE_ASPECT))
+
+
+def scene_position(x, y, size, scale):
+    """Convert bottom-left pyglet pixels back to original scene height units."""
+    width, height = size
+    return ((x - width / 2) / (height * scale),
+            (y - height / 2) / (height * scale))
+
+
+@contextmanager
+def unscaled_view(win):
+    """Pixel-sized operator messages and break videos need no scene scaling."""
+    saved_scale = win.viewScale
+    win.viewScale = (1, 1)
+    try:
+        yield
+    finally:
+        win.viewScale = saved_scale
+
 
 def load_text(path):
     """Read a text file of [section] blocks into a dict of name -> text.
@@ -103,15 +127,16 @@ def pause_study(win):
     """Space resumes; Esc stops. Return True when the operator chooses to stop."""
     print("Study paused. Space = continue; Esc = stop.", flush=True)
     save_event("pause")
-    visual.TextStim(
-        win,
-        text="Press Space to continue\n\nPress Esc again to close",
-        color="white", height=36, wrapWidth=900, units="pix",
-    ).draw()
-    win.flip()
-    event.clearEvents(eventType="keyboard")
-    keys = event.waitKeys(keyList=["space", "escape"])
-    win.flip()  # Clear the message before returning to the task.
+    with unscaled_view(win):
+        visual.TextStim(
+            win,
+            text="Press Space to continue\n\nPress Esc again to close",
+            color="white", height=36, wrapWidth=900, units="pix",
+        ).draw()
+        win.flip()
+        event.clearEvents(eventType="keyboard")
+        keys = event.waitKeys(keyList=["space", "escape"])
+        win.flip()  # Clear the message before returning to the task.
     print("Stopping study..." if "escape" in keys else "Continuing study.", flush=True)
     return "escape" in keys
 
@@ -179,11 +204,10 @@ def select_and_predict(win, stimuli, current_puppet, first_trial):
 
     def remember_press(x, y, button, modifiers):
         if not held_buttons:
-            # pyglet pixels start at bottom-left; height units at the centre.
-            width, height = win.winHandle.get_size()
-            pending_presses.append(((x - width / 2) / height,
-                                    (y - height / 2) / height,
-                                    study_clock.getTime()))
+            # Undo the drawing scale before hit-testing or saving coordinates.
+            # Use pyglet's own dimensions because its events use those pixels.
+            pos = scene_position(x, y, win.winHandle.get_size(), win.viewScale[0])
+            pending_presses.append((*pos, study_clock.getTime()))
         held_buttons.add(button)
 
     def remember_release(x, y, button, modifiers):
@@ -251,6 +275,14 @@ def select_and_predict(win, stimuli, current_puppet, first_trial):
                 continue
             mouse_x, mouse_y, press_time = pending_presses.pop(0)
             press_pos = (mouse_x, mouse_y)
+
+            # Black bars are not part of the task, even above the centre.
+            # Keep these touches as misses, but never let them advance a trial.
+            if not (abs(mouse_x) <= SCENE_ASPECT / 2 and abs(mouse_y) <= 0.5):
+                clicks.append({"time": press_time, "x": mouse_x, "y": mouse_y,
+                               "phase": "predict" if hidden else "choice",
+                               "action": "miss", "puppet": puppet})
+                continue
 
             # 1. A portrait was clicked: switch puppet.
             clicked_portrait = None
@@ -337,6 +369,7 @@ data_dir = study_dir / "Data"
 stimuli_dir = study_dir / "Stimuli"
 assignments_file = stimuli_dir / "participant_assignments.csv"
 WIN_SIZE = (1920, 1080)
+SCENE_ASPECT = WIN_SIZE[0] / WIN_SIZE[1]
 
 ### Stimuli
 
@@ -460,15 +493,26 @@ if __name__ == "__main__":
             units="height", color="black",
         )
         cleanup.callback(win.close)
+        # Height units normally fill the whole screen. Shrink the entire scene
+        # uniformly to preserve its original 16:9 layout on a taller display.
+        # At 1920x1200 this is 0.9: 1920x1080 with 60px black bars top/bottom.
+        scale = scene_scale(win.size)
+        win.viewScale = (scale, scale)
         # Record the size actually used: it can differ from the requested one.
         session["window_size"] = [int(win.size[0]), int(win.size[1])]
         session["display"] = display.metadata(win)
+        session["display"].update({
+            "scene_aspect_ratio": SCENE_ASPECT,
+            "scene_scale": scale,
+            "scene_size": [float(win.size[1] * scale * SCENE_ASPECT),
+                           float(win.size[1] * scale)],
+        })
         save_data(subject_dir)
 
         # Load the fixed scene.
         stimuli = {
-            "sky": visual.ImageStim(win, image=str(scene_files["sky"]), size=(1.77778, 1)),
-            "foreground": visual.ImageStim(win, image=str(scene_files["foreground"]), size=(1.77778, 1)),
+            "sky": visual.ImageStim(win, image=str(scene_files["sky"]), size=(SCENE_ASPECT, 1)),
+            "foreground": visual.ImageStim(win, image=str(scene_files["foreground"]), size=(SCENE_ASPECT, 1)),
             "hidden_patch": visual.ImageStim(
                 win, image=str(scene_files["hidden_patch"]),
                 pos=(0, -0.1), size=(0.15, 0.2),
@@ -562,7 +606,8 @@ if __name__ == "__main__":
                 print(f"Trial {trial_number} completed.", flush=True)
 
                 if not stop_requested and "x" in event.getKeys(keyList=["x"]):
-                    show_pause_video(win, save_event)
+                    with unscaled_view(win):
+                        show_pause_video(win, save_event)
 
                 # Stop when a puppet has used all 35 of its locations, or at the cap.
                 if len(trials) >= MAX_TRIALS or any(
