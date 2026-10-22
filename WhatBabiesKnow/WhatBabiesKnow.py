@@ -219,7 +219,7 @@ if __name__ == "__main__":
             etracker = ETracker(win)
             etracker.show_status()
             if recalibrate:
-                etracker.calibrate()
+                etracker.calibrate(auto_paced=True)
 
         # Prepare block 1 before offering to start the study.
         trials = prepare_block(win, sequence["blocks"][0], movie_cleanup)

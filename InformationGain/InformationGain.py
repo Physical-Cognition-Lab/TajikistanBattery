@@ -433,13 +433,23 @@ if __name__ == "__main__":
             etracker = ETracker(win)
             etracker.show_status()
             if recalibrate:
-                etracker.calibrate()
+                etracker.calibrate(auto_paced=True)
 
         # Start screen
-        print(f"Ready: participant {subject_id}. Space = start.", flush=True)
+        print(f"Ready: participant {subject_id}. Space = start; Esc = abort.", flush=True)
         print("During trials: Space = mark look-away; X = cancel within 1 s; Esc = pause.", flush=True)
+        visual.TextStim(
+            win,
+            text=f"Subject ID: {subject_id}\n\nPress Space to start\nPress Esc to abort",
+            color="white", height=36, wrapWidth=900,
+        ).draw()
+        win.flip()
         event.clearEvents(eventType="keyboard")
-        event.waitKeys(keyList=["space"])
+        keys = event.waitKeys(keyList=["space", "escape"])
+        if "escape" in keys:
+            print("Study aborted before playback.", flush=True)
+            core.quit()
+        win.flip()  # Clear the start instructions.
 
         # Recording starts after the start screen and stops before the end screen.
         recorder_ctx = nullcontext()

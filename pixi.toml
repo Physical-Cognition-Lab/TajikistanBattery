@@ -11,7 +11,8 @@ python = "==3.10.22"
 [pypi-dependencies]
 # Pin the tested development snapshot, not the moving dev branch.
 psychopy = { git = "https://github.com/psychopy/psychopy.git", rev = "ba68a2738c3795c3f2b930571c91324a8cdadc81" }
-dvst-detox = { git = "https://github.com/TommasoGhilardi/DeToX.git", rev = "ee04af0ab94c24518a0daec2d7fc8a8b42caaaa1" }
+# Auto-paced calibration snapshot from wt/auto-paced-calibration.
+dvst-detox = { git = "https://github.com/TommasoGhilardi/DeToX.git", rev = "07b1aea4dc6ed8793690e0d2d840bdbc15d18e6f" }
 tobii-research = "==2.1.0"
 opencv-python = "==5.0.0.93"
 numpy = "==2.2.6"

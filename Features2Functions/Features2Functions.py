@@ -331,7 +331,7 @@ if __name__ == "__main__":
             etracker = ETracker(win)
             etracker.show_status()
             if recalibrate:
-                etracker.calibrate()
+                etracker.calibrate(auto_paced=True)
 
         # Start screen
         print(f"Ready: participant {subject_id}. Space = start; Esc = abort.", flush=True)

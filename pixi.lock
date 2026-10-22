@@ -27,7 +27,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/win-64/vc-14.5-ha367084_41.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/vc14_runtime-14.51.36247-habf1de7_41.conda
       - conda: https://conda.anaconda.org/conda-forge/win-64/vcomp14-14.51.36247-habf1de7_41.conda
-      - pypi: git+https://github.com/TommasoGhilardi/DeToX.git?rev=ee04af0ab94c24518a0daec2d7fc8a8b42caaaa1#ee04af0ab94c24518a0daec2d7fc8a8b42caaaa1
+      - pypi: git+https://github.com/TommasoGhilardi/DeToX.git?rev=07b1aea4dc6ed8793690e0d2d840bdbc15d18e6f#07b1aea4dc6ed8793690e0d2d840bdbc15d18e6f
       - pypi: git+https://github.com/psychopy/psychopy.git?rev=ba68a2738c3795c3f2b930571c91324a8cdadc81#ba68a2738c3795c3f2b930571c91324a8cdadc81
       - pypi: https://files.pythonhosted.org/packages/01/6a/5980e7bbeeadfd7a9db8e38e9f1140a3e0c392fccc31bd7b1e4a75cf5a96/av-17.1.0-cp310-cp310-win_amd64.whl
       - pypi: https://files.pythonhosted.org/packages/02/b7/c82ed3540808ba870c12cb8060f9647e836d72d13dd3074463303ac0e5fc/i18next-0.0.3-py3-none-any.whl
@@ -343,7 +343,7 @@ packages:
     - vcomp14 >=14.51.36247
   size: 155910
   timestamp: 1785359349999
-- pypi: git+https://github.com/TommasoGhilardi/DeToX.git?rev=ee04af0ab94c24518a0daec2d7fc8a8b42caaaa1#ee04af0ab94c24518a0daec2d7fc8a8b42caaaa1
+- pypi: git+https://github.com/TommasoGhilardi/DeToX.git?rev=07b1aea4dc6ed8793690e0d2d840bdbc15d18e6f#07b1aea4dc6ed8793690e0d2d840bdbc15d18e6f
   name: dvst-detox
   version: 0.2.1
   requires_dist:
