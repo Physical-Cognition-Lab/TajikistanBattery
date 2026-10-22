@@ -217,6 +217,7 @@ if __name__ == "__main__":
             from DeToX import ETracker
 
             etracker = ETracker(win)
+            etracker.set_eyetracking_settings(desired_fps=250)
             etracker.show_status()
             if recalibrate:
                 etracker.calibrate(auto_paced=True)
