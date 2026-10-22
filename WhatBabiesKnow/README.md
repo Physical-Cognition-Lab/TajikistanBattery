@@ -28,8 +28,8 @@ Video time is approximately **3 min 13 s per block / 9 min 40 s overall**.
 Every movie plays to its end; Relations movies last about **35 s**, despite
 `_5s` in their filenames. Add **250 ms on black at each block start**, and
 **250 ms of the outgoing video's background between videos** (51 gaps = 12.75 s).
-These waits are additional to the Tobii design. Loading, saving, setup and
-operator-controlled breaks add time; there is no gap after a block's final video.
+Loading, saving, setup and operator-controlled breaks add time; there is no gap
+after a block's final video.
 
 ## Assigned order and display
 
@@ -50,8 +50,7 @@ Videos are centered on the selected fullscreen monitor. Relations is enlarged
 proportionally to **1920 × 1080**; other movies retain native size. Geometry and
 Numerosity have white surrounds. GazeFollowing starts gray and switches to white
 at the displayed **8 s** timestamp (the final 500 ms); other surrounds are black.
-The inter-video gap retains the outgoing surround. Source media are unchanged;
-exact equivalence to the original Tobii runtime has not been tested.
+The inter-video gap retains the outgoing surround. Source media are unchanged.
 
 ## Controls and recording
 

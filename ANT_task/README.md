@@ -1,8 +1,7 @@
 # ANT_task
 
 A keyboard attention task: identify the **middle bird's colour**, ignoring its
-neighbours and position above/below the nest. **G = yellow; H = red.** This follows
-the converted `old/ANT_task.py`, not a recreation of the published/E-Prime protocol.
+neighbours and position above/below the nest. **G = yellow; H = red.**
 Touchscreen/mouse input is not a response.
 
 Run from the repository root: `pixi run ant-task`.
@@ -42,7 +41,7 @@ The selected monitor is fullscreen. Main images retain their **1920 × 1400**
 size on 1920-wide collection displays: 160 pixels per edge are cropped at
 1920 × 1080, or 100 at 1920 × 1200, with no added black bars. Practice strips
 are **960 × 400**. Smaller screens scale uniformly; check cropping/legibility.
-Original image distortion/cropping is retained. Operator wording comes from
+Images are displayed as supplied, including their distortion/cropping. Operator wording comes from
 `instructions.txt`; keep section names and the G/H mapping when translating.
 
 ## Controls and recording
@@ -81,4 +80,4 @@ display metadata, exact instructions, `events` and practice/test `results`
 The plan is saved before presentation; responses, feedback and session end each
 checkpoint JSON. Event times include setup after assignment loading and all pauses.
 Optional webcam/timing files are in **`video/`**. No participant CSV is exported;
-old CSV outputs are left untouched.
+existing output files are left untouched.

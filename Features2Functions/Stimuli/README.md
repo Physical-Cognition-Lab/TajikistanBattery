@@ -1,14 +1,11 @@
 # Stimuli
 
-Everything the study shows. The study scales each picture to the full screen
-height (so 720x576 pictures become 1350x1080 on a 1920x1080 screen).
+Everything the study shows. Pictures are displayed at a fixed 1350x1080 pixels.
 
 ## objects/
 
 The 18 objects, plus the two extra objects that make up the second study
-version. All are 720x576 PNGs on the orange background used in the old Blob
-study, and they are the files that participants saw (checked byte for byte
-against the originals).
+version. All are 720x576 PNGs on an orange background.
 
 | Category | Stimuli |
 |---|---|
@@ -26,22 +23,13 @@ its sound embedded in the MP4:
 - `morphing_quarters.mp4` — four quarter circles converging and dividing
 
 Each clip is exactly 2.000 s, 720x576 (4:3, so it is scaled like the pictures),
-30 fps, and its shapes are drawn on the study's exact orange (248,169,122) with
-the original white background keyed out. Nothing flashes at the picture
-boundary. The sounds are the attention getter sounds from the old Blob study,
-encoded as AAC starting at the beginning of each movie, with silence after the
-sound finishes to keep the audio track at 2 s. The video streams were copied
-without re-encoding. The study does not play separate WAV files.
-
-`old/` preserves the three original silent MP4s and their matching WAVs unchanged.
-These archived files are not used by the study.
-
-`attention_candidates/` next to this folder is the review area where the clips
-were chosen from. The study does not use it.
+30 fps, with shapes on the study's orange background (248,169,122).
+Audio is embedded as AAC from the beginning of each movie, with silence after
+the sound finishes to keep the audio track at 2 s. The study does not play
+separate WAV files for these clips.
 
 ## music/
 
-`background.wav` is the music from the old session video, with the attention
-getter beeps cut out (~115 s). It plays on a loop for the whole session and
-stops at the end. Any single audio file named `background.` plus an extension
-works instead.
+`background.wav` contains about 115 s of music without attention-getter beeps.
+It loops during the trials and stops at session end. Any single audio file
+named `background.` plus an extension works instead.

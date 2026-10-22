@@ -34,7 +34,7 @@ Keep both CSVs unchanged during collection. Operator text is in `instructions.tx
 The **1920 × 1080** scene scales uniformly inside the selected fullscreen monitor.
 At 1920 × 1200 it has 60-pixel black bars above/below. Touches are converted back
 to scene coordinates; bar touches count as misses. Check touch alignment and
-extreme reveal positions before collection; original scene clipping is retained.
+extreme reveal positions and scene clipping before collection.
 
 ## Controls and recording
 
