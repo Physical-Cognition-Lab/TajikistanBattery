@@ -18,7 +18,7 @@ Session
 ├── Participant/options + eye-tracker connection check
 ├── Load participant assignments, check assets and save planned order
 ├── Start screen → Space to begin
-├── Start optional webcam recording and background music
+├── Start webcam recording if ticked (off by default) and background music
 ├── Object trials × 18
 │   ├── Attention getter + sound ........ up to 2 s
 │   ├── Object picture .................. 5 s

@@ -243,7 +243,7 @@ if __name__ == "__main__":
     # Participant setup
     display = DisplaySettings.detect()
     subject_id, _, recording, tracker_checked, recalibrate = get_participant(
-        data_dir, recording=True, eye_tracker=True, display=display,
+        data_dir, recording=False, eye_tracker=True, display=display,
     )
 
     # The participant's assignment fixes the object set and
@@ -405,5 +405,15 @@ if __name__ == "__main__":
                 background_sound.stop()
             save_data(subject_dir)
             print(f"Study {'stopped early' if stop_requested else 'completed'}. Data saved to {sequence_path}.", flush=True)
+
+        if not stop_requested:
+            win.color = "black"
+            win.clearBuffer()
+            visual.TextStim(
+                win, text="The study is finished!", color="white", height=60,
+                units="pix", wrapWidth=900,
+            ).draw()
+            win.flip()
+            core.wait(10)
 
     core.quit()

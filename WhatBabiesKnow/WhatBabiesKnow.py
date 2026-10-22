@@ -105,12 +105,19 @@ def play_video(win, movie, background, block_number, trial_number):
     video_name = Path(movie.filename).name
     pause_requested = False
     started = False
+    gaze_following = video_name.startswith("GF_")
     event.clearEvents(eventType="keyboard")
     try:
         movie.play()
         while not movie.isFinished:
             background.draw()
             movie.draw()
+            if gaze_following and movie.pts >= 8.0:
+                # All 64 clips turn white at 8 s. Redraw on this same flip.
+                background.fillColor = "white"
+                background.draw()
+                movie.draw()
+                gaze_following = False
             # MovieStim returns True from draw(); check
             # decoded frame availability so a blank startup flip is not onset.
             first_frame = not started and movie._recentFrame is not None
@@ -121,8 +128,9 @@ def play_video(win, movie, background, block_number, trial_number):
             if event.getKeys(keyList=["escape"]):
                 pause_requested = True
 
+        background.draw()
         win.callOnFlip(save_event, "video_offset", block_number, trial_number, video_name)
-        win.flip()  # Clear the final image and timestamp that flip.
+        win.flip()  # Remove the video, leaving its plain background visible.
     finally:
         # A finished but unpaused player can interfere with the next movie's clock.
         # Keep it allocated until the next block, but stop its playback now.
@@ -143,7 +151,10 @@ stimuli_dir = study_dir / "Stimuli"
 
 ## General
 N_BLOCKS = 3
-MOVIE_BACKGROUNDS = {"GazeFollowing": "#EDEDED", "Geometry": "#FFFFFF"}
+MOVIE_BACKGROUNDS = {
+    "GazeFollowing": "#EDEDED", "Geometry": "#FFFFFF",
+    "ANS_easy": "#FFFFFF", "ANS_hard": "#FFFFFF",
+}
 
 
 # Set while a session records, so save_event can also write to the video.
@@ -167,7 +178,7 @@ if __name__ == "__main__":
     # Participant setup
     display = DisplaySettings.detect()
     subject_id, subjnum, recording, tracker_checked, recalibrate = get_participant(
-        data_dir, recording=True, eye_tracker=True, display=display,
+        data_dir, recording=False, eye_tracker=True, display=display,
     )
 
     # The participant dialog has already created this folder after its checks.
@@ -263,6 +274,7 @@ if __name__ == "__main__":
 
                 save_event("block_start", block["block"])
                 print(f"Block {block['block']}/{N_BLOCKS} started.", flush=True)
+                core.wait(0.25)  # Stay on black before the first video of each block.
                 for trial_number, (category_name, filename, movie, background) in enumerate(trials, start=1):
                     print(f"Block {block['block']}/{N_BLOCKS} | Video {trial_number}/{len(trials)} | {category_name}", flush=True)
                     pause_requested = play_video(win, movie, background, block["block"], trial_number)
@@ -275,6 +287,8 @@ if __name__ == "__main__":
                         show_pause_video(win, save_event)
                     if stop_requested:
                         break
+                    if trial_number < len(trials):
+                        core.wait(0.25)  # Keep the outgoing video's plain background visible.
                 save_event("block_stopped" if stop_requested else "block_end", block["block"])
                 print(f"Block {block['block']} {'stopped early' if stop_requested else 'completed'}.", flush=True)
                 save_data(subject_dir)
@@ -285,5 +299,15 @@ if __name__ == "__main__":
             save_event("study_stopped" if stop_requested else "study_end")
             save_data(subject_dir)
             print(f"Study {'stopped early' if stop_requested else 'completed'}. Data saved to {sequence_path}.", flush=True)
+
+        if not stop_requested:
+            win.color = "black"
+            win.clearBuffer()
+            visual.TextStim(
+                win, text="The study is finished!", color="white", height=60,
+                units="pix", wrapWidth=900,
+            ).draw()
+            win.flip()
+            core.wait(10)
 
     core.quit()

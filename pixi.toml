@@ -24,6 +24,7 @@ wxpython = "==4.3.1"
 tables = "==3.10.1"
 
 [tasks]
+ant-task = "python -m ANT_task.ANT_task"
 hide-and-seek = "python -m HideAndSeek.HideAndSeek"
 what-babies-know = "python -m WhatBabiesKnow.WhatBabiesKnow"
 information-gain = "python -m InformationGain.InformationGain"

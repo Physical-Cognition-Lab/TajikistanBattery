@@ -19,7 +19,6 @@ def main():
     enable_native_pixels()
     from psychopy import core, event, visual
     from utils.display_settings import DisplaySettings
-    from utils.pause_video import show_pause_video
     from HideAndSeek import HideAndSeek as study
 
     display = DisplaySettings.detect()
@@ -114,13 +113,6 @@ def main():
             assert not study.pause_study(win)
         assert tuple(win.viewScale) == (scale, scale)
         print("PASS: actual pause/resume drawing and scale restoration", flush=True)
-
-        start = time.monotonic()
-        with study.unscaled_view(win), \
-                patch.object(event, "getKeys", side_effect=lambda **kw: ["x"] if time.monotonic() - start > 2 else []):
-            show_pause_video(win, lambda action: None)
-        assert tuple(win.viewScale) == (scale, scale)
-        print("PASS: actual break-video playback/unload and scale restoration", flush=True)
 
         with (study.stimuli_dir / "locations.csv").open(newline="") as source:
             rows = list(csv.DictReader(source))

@@ -23,7 +23,7 @@ to the original scene coordinates before hit-testing and saving. Bar touches
 are logged as misses and cannot submit predictions. Display metadata records
 the actual window size, scene scale, and scene size.
 
-Operator pause messages and the pixel-sized break video are not scene-scaled.
+Operator pause messages are not scene-scaled.
 Before collecting data, check the extreme reveal positions and touch alignment
 on the participant screen; fitting preserves the original layout, including
 any clipping already present in that layout.
@@ -57,9 +57,7 @@ trial; data is saved first. The first trial includes extra hide/predict hints.
 During choosing or the reveal, Esc pauses; Space resumes and Esc again stops.
 Esc on the welcome or closing screen exits directly.
 
-X waits until the current trial's reveal finishes, then loops `utils/pause.avi`
-as a video break. Press X again to continue. It logs `attgrabber` (no `resume`
-event), and optional webcam recording continues during the break.
+There is no X-controlled video break in this study.
 
 ## Triggers
 
@@ -74,7 +72,6 @@ text to the optional webcam recorder. No eye-tracker triggers are sent yet.
 - `predict`: a valid prediction above screen centre is tapped.
 - `miss`: a tap does not hide a puppet or make a valid prediction.
 - `pause`: when the Esc pause screen opens.
-- `attgrabber`: when the X-controlled video break opens.
 - `study_end` / `study_stopped`: normal completion / operator stops early.
 
 Click events keep their original press times, but are added to the table and

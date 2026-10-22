@@ -3,7 +3,8 @@
 `utils/video_recording/webcam_recorder.py` captures and saves video in a separate Python process. It
 does not import PsychoPy, show a preview window, record audio, or change any
 experiment. Defaults: camera 0, **640 × 480, 15 fps, hardware H.264 in MP4**,
-targeting **1 Mbps** (approximately 450 MB/hour, plus small timing files).
+targeting **1 Mbps** (approximately 450 MB/hour, plus a small JSON event record
+and a normally empty FFmpeg log).
 
 OpenCV must be installed in the Python environment used to run it. Check with
 `python -c "import cv2; print(cv2.__version__)"`; if missing, install
@@ -20,16 +21,16 @@ and the machine must have the corresponding GPU/driver. Check with
 Study process: send_text("Trial 1") → bounded, non-blocking message queue
                                            ↓
 Recording process: webcam → resize/rate limit → text overlay → FFmpeg → MP4
-                                                        ↘ timing CSV
+                                                        ↘ event JSON
 ```
 
-The study sends only short labels and their timestamps. Capture, text drawing,
-encoding, timing-file writes and error logging happen in the recording process.
-No video frames are transferred back to PsychoPy. Frames go from the recording
-process to an FFmpeg subprocess, which performs hardware H.264 encoding at a
-constant playback rate of 15 fps. OpenCV processing and FFmpeg filtering are
-limited to one thread; FFmpeg runs below normal priority on Windows. Backend
-capture/driver threads are outside this limit.
+The study sends only short labels. Capture, text drawing, encoding, the event
+JSON and error logging all happen in the recording process. No video frames are
+transferred back to PsychoPy. Frames go from the recording process to an FFmpeg
+subprocess, which performs hardware H.264 encoding at a constant playback rate
+of 15 fps. OpenCV processing and FFmpeg filtering are limited to one thread;
+FFmpeg runs below normal priority on Windows. Backend capture/driver threads are
+outside this limit.
 
 `encoder="auto"` probes NVIDIA NVENC (`h264_nvenc`), Intel Quick Sync
 (`h264_qsv`), then AMD AMF (`h264_amf`) before recording. It actually encodes a
@@ -72,25 +73,26 @@ For an automatic webcam test with ten random messages, about one second apart:
 pixi run python -m utils.video_recording.demo_random_messages
 ```
 
-This records about eleven seconds under `Data/webcam_demo/video/`, verifies
-the saved video against its CSV, and extracts a `.preview.png` showing the
-first message. Each message still lasts only one frame. It activates the real
-webcam; use `--camera 1` to select another device. These local demo recordings
-are excluded from Git by the existing `Data/` ignore rule.
+This records about eleven seconds under `Data/webcam_demo/video/`, verifies the
+labels recorded in the JSON against the ones it sent, and extracts a
+`.preview.png` showing the first labelled frame. Each message lasts only one
+frame. It activates the real webcam; use `--camera 1` to select another device.
+These local demo recordings are excluded from Git by the existing `Data/` ignore
+rule.
 
 ## Text appearance
 
 - **Top-left:** `Frame 0`, `Frame 1`, etc., burned into every saved frame. This
-  zero-based number matches the CSV's `frame_index` exactly.
-- **Top-right:** the received message, shown on one frame only, in black text
-  on a solid white rectangle. It uses scale `1.0` (roughly 22 pixels tall), a
-  2-pixel stroke, and 8 pixels of padding inside the rectangle. No message means
+  zero-based number is the frame's index in the saved video.
+- **Top-right:** the received message, shown on one frame only. No message means
   no rectangle is drawn.
-- The frame number stays at scale `0.7` (roughly 16 pixels tall), white with a
-  black outline. Both use OpenCV's `FONT_HERSHEY_SIMPLEX` and a 10-pixel outer
-  margin. Long messages are automatically scaled down to fit beside the frame
-  number; keep labels short for readability. The full text stays in the CSV
-  even when drawn smaller.
+- Both use the same style: black text on a solid white rectangle, OpenCV's
+  `FONT_HERSHEY_SIMPLEX`, a 2-pixel stroke, 8 pixels of padding inside the box and
+  a 10-pixel outer margin. The frame number uses scale `0.7` (roughly 16 pixels
+  tall), the message scale `1.0` (roughly 22 pixels tall). Long messages are
+  automatically scaled down to fit beside the frame number; keep labels short for
+  readability. The full text is still stored in the JSON even when it is drawn
+  smaller.
 
 ## Future Coder integration (example only)
 
@@ -141,7 +143,7 @@ Use the study's actual participant data path rather than relying on the current
 working directory. For that same script layout, for example:
 `subject_data = Path(__file__).resolve().parent / "data" / "S001"`.
 
-## Output location and timing files
+## Output files
 
 `WebcamRecorder.for_subject(subject_data_dir)` generates a unique filename and
 creates missing directories when started. For example:
@@ -149,34 +151,56 @@ creates missing directories when started. For example:
 ```text
 InformationGain/data/S001/video/
     recording_20261014_153000_a1b2c3d4.mp4
-    recording_20261014_153000_a1b2c3d4.csv
     recording_20261014_153000_a1b2c3d4.json
     recording_20261014_153000_a1b2c3d4.ffmpeg.log  (encoder diagnostics; normally empty)
     recording_20261014_153000_a1b2c3d4.errors.txt  (only on a worker error)
 ```
 
 Alternatively pass an exact filename: `WebcamRecorder(subject_data / "video" /
-"session1.mp4")`. Existing video or sidecar files are never intentionally
-overwritten; use the unique helper for repeat recordings.
+"session1.mp4")`. Existing video, JSON, log or error files are never
+intentionally overwritten; use the unique helper for repeat recordings.
 
-The CSV has one row per frame written, with zero-based `frame_index`, fixed-rate
-`video_time_s`, `capture_received_ns`, `message_sent_ns`, `message_received_ns`,
-and `text`. Message fields are empty for unlabelled frames. All `*_ns` fields use
-Python's shared monotonic `time.perf_counter_ns()` clock, not the PsychoPy clock.
-Subtract send from receive to estimate message transport/queue delay. A frame's
-capture time can precede the message send time because messages are checked after
-capture. Capture time is **not** the camera exposure time. The JSON describes the
-clock and stores a near-simultaneous monotonic/Unix-time anchor, actual capture
-dimensions, output dimensions/rate, target bitrate, and selected encoder.
+The JSON pairs labels with frames. It records the video name, codec, selected
+encoder, playback fps, output size, camera index, the clock declaration and a
+near-simultaneous monotonic/Unix anchor, plus one entry per recorded label:
 
-CSV writes are buffered and flushed about once per second and on clean shutdown.
-A crash may lose the tail of the CSV/video. Rows describe submitted video frames,
-not durable disk-write acknowledgements. Encoder errors are detected on writes
-and shutdown, with FFmpeg details in the `.ffmpeg.log` file. The MP4 is fragmented
+```json
+{
+  "video": "recording_20261014_153000_a1b2c3d4.mp4",
+  "codec": "H.264",
+  "encoder": "h264_nvenc",
+  "playback_fps": 15.0,
+  "width": 640,
+  "height": 480,
+  "camera": 0,
+  "clock": "time.perf_counter_ns",
+  "clock_anchor_monotonic_ns": 8123456789012,
+  "clock_anchor_unix_ns": 1760000000123456789,
+  "events": [
+    {"frame_index": 137, "text": "Trial 1", "sent_ns": 8120000000000, "received_ns": 8120050000000}
+  ]
+}
+```
+
+`frame_index` matches the `Frame N` burned into that video frame, and `text` is
+the label the study passed to `send_text`. `sent_ns` is taken in the study
+process, `received_ns` when the recorder dequeued it; both use the same
+`time.perf_counter_ns` clock, so their difference estimates queue delay. Frames
+without a label get no entry, so the file stays a few kilobytes per session.
+Convert a stamp to Unix time with
+`clock_anchor_unix_ns + (stamp_ns - clock_anchor_monotonic_ns)` to line it up
+with the study's event table or eye-tracker log.
+
+The JSON is written once, in the worker, when recording stops. A killed worker
+or a crash produces no JSON at all, even if the MP4 is partly recoverable; it
+never leaves a half-written file. Encoder errors are detected on writes and
+shutdown, with FFmpeg details in the `.ffmpeg.log` file. The MP4 is fragmented
 at keyframes (about every two seconds) so completed fragments can often be
 recovered after interruption; the last fragment may be lost. This is not a
 guarantee against file corruption, disk failure, or forced termination.
-Messages not recorded (queue rejection, immediate stop or crash) have no CSV row.
+Messages not recorded (queue rejection, immediate stop before the next frame, or
+a crash) never appear in the JSON: it describes what was encoded, not what the
+study intended to send.
 
 ## Failure isolation
 
@@ -212,7 +236,8 @@ Messages not recorded (queue rejection, immediate stop or crash) have no CSV row
   discard pending labels. A dead worker causes `send_text` to return `False`.
   Worker errors are collected on the next send or stop, not continuously polled.
 - MP4 uses the configured fixed playback frame rate. Actual capture cadence can
-  differ; the CSV records receive timing but does not compensate for dropped frames.
+  differ; the JSON stores no per-frame timeline and does not compensate for
+  dropped frames.
 - Camera mode requests are best-effort (DirectShow on Windows), but **saved output
   is always the requested size**. Larger camera frames are resized before drawing
   overlays. Excess capture frames are discarded to target 15 saved frames/second;
@@ -223,7 +248,8 @@ Messages not recorded (queue rejection, immediate stop or crash) have no CSV row
   640 × 480/15 fps, but decoding and resizing a larger source still cost CPU.
   A webcam that supports native 640 × 480 capture would reduce that work.
 - There is no frame duplication to fill gaps. If capture/encoding is slower than
-  15 fps, playback will run faster than real time; use the CSV for actual timing.
+  15 fps, playback will run faster than real time; use the JSON entry's
+  `frame_index` and `*_ns` stamps, or the study's own logs, for actual timing.
   One-frame messages have approximately 67 ms granularity at 15 fps.
 - CPU, USB and disk remain shared with PsychoPy. Compare PsychoPy dropped frames
   with recording on/off on the actual experiment machine; zero impact cannot be

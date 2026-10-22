@@ -1,0 +1,58 @@
+# Instructions for the ANT task.
+#
+# Each message is one [section] block, as in HideAndSeek/instructions.txt.
+# Edit or translate the text without changing the code. Blank lines make
+# paragraph breaks. Keep the [headings] unchanged and every section non-empty.
+# The response keys are G (yellow) and H (red); keep that mapping in translations.
+# All messages use bold black text on a solid light panel over the artwork.
+
+[welcome]
+Help the birds get back home!
+
+Look at the bird in the MIDDLE of the row.
+If the middle bird is YELLOW, press G.
+If the middle bird is RED, press H.
+Ignore the other birds.
+
+Let's practise first.
+Press SPACE to begin. ESC = stop.
+
+[practice_reminder]
+Let's try again! Help the middle bird get home.
+
+YELLOW middle bird: press G.
+RED middle bird: press H.
+Ignore the other birds.
+
+Press SPACE to continue. ESC = stop.
+
+[test_start]
+Now let's start the game!
+
+Look at the MIDDLE bird, not its neighbours.
+YELLOW: press G. RED: press H.
+Answer as quickly and accurately as you can.
+
+Press SPACE to start. ESC = stop.
+
+[block_break]
+Time for a short break!
+
+Press SPACE when you are ready to continue.
+ESC = stop.
+
+[pause]
+Study paused.
+
+Press SPACE to continue.
+Press ESC again to stop.
+
+[stopped]
+Study stopped. Your data have been saved.
+
+Press SPACE to close.
+
+[end]
+Experiment complete. Thank you!
+
+Press SPACE to close.

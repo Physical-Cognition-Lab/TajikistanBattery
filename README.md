@@ -9,6 +9,7 @@ designs and behaviour.
 
 ## Studies
 
+- [ANT_task](ANT_task/README.md) — G/H keyboard bird-colour attention task, based on the converted PsychoPy study.
 - [Features2Functions](Features2Functions/README.md) — still pictures of objects, with attention getters.
 - [HideAndSeek](HideAndSeek/README.md) — a touchscreen puppet game.
 - [InformationGain](InformationGain/README.md) — cue and target animations, with look-away marking.
@@ -29,7 +30,7 @@ Shared code lives in `utils/`:
 
 - `subject_selection.py` — participant dialog, options and folder creation.
 - `eye_tracker_check.py` — Tobii connection check.
-- `pause_video.py` — X-controlled video breaks using `pause.avi` (except InformationGain).
+- `pause_video.py` — X-controlled video breaks using `pause.avi` (only Features2Functions and WhatBabiesKnow).
 - `data_saving.py` — safe JSON writes shared by the studies.
 - `video_recording/` — webcam recording in a separate process.
 
@@ -75,6 +76,7 @@ the webcam recorder keeps its own context-managed shutdown.
 Install [pixi](https://pixi.sh), then run from the repository root:
 
 ```powershell
+pixi run ant-task
 pixi run features-to-functions
 pixi run hide-and-seek
 pixi run information-gain
@@ -95,8 +97,10 @@ take longer while pixi installs the environment.
 The shared dialog asks for the participant number, webcam recording and,
 where supported, eye tracking with a nested **Recalibrate** option.
 
-- Video and eye tracker default to on in all studies except HideAndSeek.
-- HideAndSeek defaults to video off and hides eye-tracker options.
+- Webcam recording defaults to off in every study except InformationGain; the
+  operator can still tick it in any study before continuing.
+- Eye tracking is offered (default on) in Features2Functions, InformationGain and
+  WhatBabiesKnow; HideAndSeek and ANT_task hide those options.
 - Recalibrate defaults to on and is enabled only when eye tracker is selected.
 - A failed tracker check offers instructions, Retry, Uncheck or Cancel.
 

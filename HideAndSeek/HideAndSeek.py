@@ -167,7 +167,10 @@ def draw_scene(win, stimuli, centre=None, centre_in_front=False, overlays=None):
     if centre is not None and centre_in_front:
         centre.draw()
 
-    for portrait in stimuli["portraits"].values():
+    # The selected puppet has left its cell; the other two remain in theirs.
+    for colour, portrait in stimuli["portraits"].items():
+        if colour == stimuli["selected_puppet"]:
+            portrait = stimuli["empty_portraits"][colour]
         portrait.draw()
 
     for stim in overlays or []:
@@ -226,8 +229,13 @@ def select_and_predict(win, stimuli, current_puppet, first_trial):
     footer = stimuli["instructions"]["footer"]
 
     puppet = current_puppet
+    stimuli["selected_puppet"] = puppet
     hidden = False
     clicks = []  # Every click made while choosing, with its position.
+    # Original cue timing: sound at 0.3 s, hint at 0.5 s, centre at 1 s.
+    # Keep drawing and accepting portrait/prediction touches during the wait.
+    pending_sound = "appearance"
+    stage_start = study_clock.getTime()
 
     # First trial: start with the "hide" hint. Later trials: drop the hint and
     # show the standing reminder instead.
@@ -242,6 +250,7 @@ def select_and_predict(win, stimuli, current_puppet, first_trial):
                                 on_mouse_release=remember_release)
     try:
         while True:
+            stage_elapsed = study_clock.getTime() - stage_start
 
             # On the first trial the hint follows the stage: hide, then predict.
             if first_trial:
@@ -254,18 +263,30 @@ def select_and_predict(win, stimuli, current_puppet, first_trial):
                 centre = hidden_patch
             else:
                 centre = stimuli["puppets"][puppet]["cue"]
+            centre_visible = stage_elapsed >= 1.0
+            if not centre_visible:
+                centre = None
 
+            overlays = [hint, footer] if stage_elapsed >= 0.5 else [footer]
             draw_scene(win, stimuli, centre=centre, centre_in_front=True,
-                       overlays=[hint, footer])
+                       overlays=overlays)
             win.flip()
 
+            if pending_sound is not None and study_clock.getTime() - stage_start >= 0.3:
+                stimuli["sounds"][pending_sound].play()
+                pending_sound = None
+
             if "escape" in event.getKeys(keyList=["escape"]):
+                stimuli["sounds"]["appearance"].stop()
+                stimuli["sounds"]["hiding"].stop()
+                pause_start = study_clock.getTime()
                 if pause_study(win):
                     stop_requested = True
                     return None, None, clicks
                 # Back from a pause: ignore any click that happened meanwhile.
                 mouse.getPressed()  # Dispatch any remaining mouse events.
                 pending_presses.clear()
+                stage_start += study_clock.getTime() - pause_start
                 continue
 
             # --- react only to a fresh contact, at its saved press point ---
@@ -301,16 +322,24 @@ def select_and_predict(win, stimuli, current_puppet, first_trial):
                                "phase": "choice", "action": "switch",
                                "puppet": clicked_portrait})
                 puppet = clicked_portrait
+                stimuli["selected_puppet"] = puppet
                 hidden = False
+                stimuli["sounds"]["appearance"].stop()
+                stimuli["sounds"]["hiding"].stop()
+                pending_sound = "appearance"
+                stage_start = study_clock.getTime()
 
             # 2. The central puppet was clicked: hide it.
             elif not hidden:
-                if stimuli["puppets"][puppet]["cue"].contains(press_pos):
+                if (centre_visible and press_time >= stage_start + 1.0
+                        and stimuli["puppets"][puppet]["cue"].contains(press_pos)):
                     clicks.append({"time": press_time, "x": mouse_x, "y": mouse_y,
                                    "phase": "choice", "action": "hide",
                                    "puppet": puppet})
                     hidden = True
-                    stimuli["sounds"]["hiding"].play()
+                    stimuli["sounds"]["appearance"].stop()
+                    pending_sound = "hiding"
+                    stage_start = study_clock.getTime()
                 else:
                     # Touch that hit nothing while choosing.
                     clicks.append({"time": press_time, "x": mouse_x, "y": mouse_y,
@@ -330,6 +359,9 @@ def select_and_predict(win, stimuli, current_puppet, first_trial):
                                    "phase": "predict", "action": "miss",
                                    "puppet": puppet})
     finally:
+        # A quick prediction cancels a sound that has not started yet.
+        stimuli["sounds"]["appearance"].stop()
+        stimuli["sounds"]["hiding"].stop()
         # Do not leave handlers attached after this trial ends or stops.
         win.winHandle.remove_handlers(on_mouse_press=remember_press,
                                       on_mouse_release=remember_release)
@@ -363,6 +395,24 @@ def reveal(win, stimuli, puppet, target_pos, target_angle):
                     return
 
     stimuli["sounds"]["reveal"].stop()
+
+
+def inter_trial_pause(win, stimuli):
+    """Show the scene without a central puppet for one second between trials."""
+    global stop_requested
+
+    clock = core.Clock()
+    end_time = 1.0
+    while clock.getTime() < end_time:
+        draw_scene(win, stimuli)
+        win.flip()
+        if "escape" in event.getKeys(keyList=["escape"]):
+            pause_start = clock.getTime()
+            if pause_study(win):
+                stop_requested = True
+                return
+            # Keep the operator's pause outside the one-second gap.
+            end_time += clock.getTime() - pause_start
 
 
 # ------------------------------ Settings and paths ------------------------------
@@ -439,14 +489,15 @@ if __name__ == "__main__":
 
     from utils.subject_selection import get_participant
     from utils.data_saving import write_json
-    from utils.pause_video import show_pause_video
     from utils.display_settings import DisplaySettings
 
     # Participant setup
     # Keep this clock running through the dialog, as in existing session logs.
     study_clock = core.Clock()
     display = DisplaySettings.detect()
-    subject_id, subjnum, recording, _, _ = get_participant(data_dir, display=display)
+    subject_id, subjnum, recording, _, _ = get_participant(
+        data_dir, recording=False, display=display,
+    )
     subject_dir = data_dir / subject_id
     print(f"Preparing HideAndSeek for participant {subject_id}.", flush=True)
 
@@ -525,6 +576,8 @@ if __name__ == "__main__":
             ),
             "puppets": {},
             "portraits": {},
+            "empty_portraits": {},
+            "selected_puppet": None,
             "sounds": {},
             "instructions": {
                 # Both start empty; only one is filled at a time, in select_and_predict.
@@ -539,12 +592,16 @@ if __name__ == "__main__":
                                    pos=(0, -0.1), size=(0.15, 0.2))
             portrait = visual.ImageStim(win, image=str(files["portrait"]),
                                          pos=portrait_positions[colour], size=(0.16428, 0.2))
+            # Preload the empty version too: switching needs no disk access.
+            empty_portrait = visual.ImageStim(win, image=str(files["empty"]),
+                                               pos=portrait_positions[colour], size=(0.16428, 0.2))
             animation = [
                 visual.ImageStim(win, image=str(path), size=(0.1, 0.1))
                 for path in files["animation"]
             ]
             stimuli["puppets"][colour] = {"cue": cue, "animation": animation}
             stimuli["portraits"][colour] = portrait
+            stimuli["empty_portraits"][colour] = empty_portrait
 
         # Register each sound immediately, including when later loading fails.
         for name, path in sound_files.items():
@@ -569,7 +626,7 @@ if __name__ == "__main__":
             position_index = {"blue": 0, "red": 0, "green": 0}
             current_puppet = "blue"
             save_event("study_start")
-            print("Study started. Esc = pause; X = video break after the current trial.", flush=True)
+            print("Study started. Esc = pause.", flush=True)
 
             while not stop_requested:
                 trial_number = len(trials) + 1
@@ -592,6 +649,9 @@ if __name__ == "__main__":
 
                 # Advance that puppet's own sequence and show the reveal.
                 target_pos_x, target_pos_y, target_angle = locations[puppet][position_index[puppet]]
+                # Reverse the Pavlovia-adjusted tilt for desktop PsychoPy.
+                # Use this same angle for drawing and saving the trial.
+                target_angle = -target_angle
                 target_pos = (target_pos_x, target_pos_y)
                 position_index[puppet] += 1
                 reveal(win, stimuli, puppet, target_pos, target_angle)
@@ -611,15 +671,14 @@ if __name__ == "__main__":
                 save_data(subject_dir)
                 print(f"Trial {trial_number} completed.", flush=True)
 
-                if not stop_requested and "x" in event.getKeys(keyList=["x"]):
-                    with unscaled_view(win):
-                        show_pause_video(win, save_event)
-
                 # Stop when a puppet has used all 35 of its locations, or at the cap.
                 if len(trials) >= MAX_TRIALS or any(
                     position_index[c] >= len(locations[c]) for c in locations
                 ):
                     break
+
+                if not stop_requested:
+                    inter_trial_pause(win, stimuli)
 
             # Final save and cleanup
             session["completed"] = not stop_requested

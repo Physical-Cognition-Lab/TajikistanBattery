@@ -1,6 +1,5 @@
 """Independent webcam recording with one-frame text markers (no PsychoPy imports)."""
 
-import csv
 import json
 import math
 import multiprocessing as mp
@@ -14,44 +13,42 @@ from .h264_writer import ENCODERS, H264Writer
 
 
 def _draw_overlays(cv2, frame, frame_index, text):
+    """Black text on solid white boxes, top-left and top-right."""
     margin = 10
-    scale = 0.7
     padding = 8
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    frame_label = f"Frame {frame_index}"
-    (number_width, number_height), _ = cv2.getTextSize(frame_label, font, scale, 1)
+    number_scale = 0.7
     message_scale = 1.0
-    message_width = message_height = message_baseline = 0
+    font = cv2.FONT_HERSHEY_SIMPLEX
+
+    def text_size(label, scale):
+        (width, height), baseline = cv2.getTextSize(label, font, scale, 2)
+        return width, height, baseline
+
+    def boxed(label, scale, left):
+        # The white box keeps the label readable against any camera image.
+        width, height, baseline = text_size(label, scale)
+        cv2.rectangle(frame, (left, margin),
+                      (left + width + 2 * padding, margin + height + baseline + 2 * padding),
+                      (255, 255, 255), -1)
+        cv2.putText(frame, label, (left + padding, margin + padding + height),
+                    font, scale, (0, 0, 0), 2, cv2.LINE_AA)
+        return width
+
+    number_width = boxed(f"Frame {frame_index}", number_scale, margin)
     if text is not None:
-        (message_width, message_height), message_baseline = cv2.getTextSize(
-            text, font, message_scale, 2)
-        available_width = max(1, frame.shape[1] - number_width - 4 * margin - 2 * padding)
+        message_width, _, _ = text_size(text, message_scale)
+        available_width = max(1, frame.shape[1] - number_width - 4 * margin - 4 * padding)
         if message_width > available_width:
             message_scale *= available_width / message_width
-            (message_width, message_height), message_baseline = cv2.getTextSize(
-                text, font, message_scale, 2)
-
-    def draw(label, position, font_scale):
-        # A dark outline keeps labels visible against bright backgrounds.
-        cv2.putText(frame, label, position, font, font_scale,
-                    (0, 0, 0), 3, cv2.LINE_AA)
-        cv2.putText(frame, label, position, font, font_scale,
-                    (255, 255, 255), 1, cv2.LINE_AA)
-
-    draw(frame_label, (margin, margin + number_height), scale)
-    if text is not None:
+            message_width, _, _ = text_size(text, message_scale)
         right = frame.shape[1] - margin
-        left = right - message_width - 2 * padding
-        bottom = margin + message_height + message_baseline + 2 * padding
-        cv2.rectangle(frame, (left, margin), (right, bottom), (255, 255, 255), -1)
-        cv2.putText(frame, text, (left + padding, margin + padding + message_height),
-                    font, message_scale, (0, 0, 0), 2, cv2.LINE_AA)
+        boxed(text, message_scale, right - message_width - 2 * padding)
 
 
 def _record(output, camera, width, height, fps, encoder, messages, stop, status,
             bitrate=1_000_000, ffmpeg="ffmpeg"):
     output = Path(output)
-    capture = writer = timing_file = None
+    capture = writer = metadata = None
     error = None
     try:
         import cv2
@@ -70,30 +67,17 @@ def _record(output, camera, width, height, fps, encoder, messages, stop, status,
             raise RuntimeError("Webcam did not return an initial frame")
 
         # Cameras can ignore mode requests. Always enforce the saved dimensions.
-        actual_height, actual_width = frame.shape[:2]
         writer = H264Writer(output, width, height, fps, encoder, bitrate, ffmpeg)
-        with output.with_suffix(".json").open("x", encoding="utf-8") as metadata:
-            json.dump({
-                "video": output.name, "codec": "H.264", "encoder": writer.encoder,
-                "target_bitrate": bitrate, "playback_fps": fps,
-                "width": width, "height": height, "camera": camera,
-                "capture_width": actual_width, "capture_height": actual_height,
-                "capture_fps_reported": capture.get(cv2.CAP_PROP_FPS),
-                "clock": "time.perf_counter_ns (shared monotonic clock)",
-                "clock_anchor_monotonic_ns": time.perf_counter_ns(),
-                "clock_anchor_unix_ns": time.time_ns(),
-                "capture_timestamp": "Immediately after read; not exposure time",
-                "frame_index": "Zero-based",
-                "overlay": "Frame index top-left on every frame; message top-right for one frame",
-            }, metadata, indent=2)
-        timing_file = output.with_suffix(".csv").open("x", newline="", encoding="utf-8")
-        timings = csv.writer(timing_file)
-        timings.writerow(["frame_index", "video_time_s", "capture_received_ns",
-                          "message_sent_ns", "message_received_ns", "text"])
-        timing_file.flush()
+        metadata = {
+            "video": output.name, "codec": "H.264", "encoder": writer.encoder,
+            "playback_fps": fps, "width": width, "height": height, "camera": camera,
+            "clock": "time.perf_counter_ns",
+            "clock_anchor_monotonic_ns": time.perf_counter_ns(),
+            "clock_anchor_unix_ns": time.time_ns(),
+            "events": [],
+        }
         status.send(("ready", None))
         frame_index = 0
-        last_flush_ns = captured_ns
         interval_ns = round(1_000_000_000 / fps)
         next_frame_ns = captured_ns
 
@@ -115,16 +99,15 @@ def _record(output, camera, width, height, fps, encoder, messages, stop, status,
                 text, sent_ns = messages.get_nowait()
                 received_ns = time.perf_counter_ns()
             except Empty:
-                text = None
-                sent_ns = received_ns = ""
+                text = sent_ns = received_ns = None
             _draw_overlays(cv2, frame, frame_index, text)
             writer.write(frame)
-            timings.writerow([frame_index, frame_index / fps, captured_ns,
-                              sent_ns, received_ns, text or ""])
+            if text is not None:
+                metadata["events"].append({
+                    "frame_index": frame_index, "text": text,
+                    "sent_ns": sent_ns, "received_ns": received_ns,
+                })
             frame_index += 1
-            if captured_ns - last_flush_ns >= 1_000_000_000:
-                timing_file.flush()
-                last_flush_ns = captured_ns
             if stop.is_set():
                 break
             ok, frame = capture.read()
@@ -134,13 +117,19 @@ def _record(output, camera, width, height, fps, encoder, messages, stop, status,
     except Exception as exc:
         error = f"{type(exc).__name__}: {exc}"
     finally:
-        for resource, method in ((writer, "release"), (capture, "release"),
-                                 (timing_file, "close")):
+        for resource, method in ((writer, "release"), (capture, "release")):
             if resource is not None:
                 try:
                     getattr(resource, method)()
                 except Exception as exc:
                     error = error or f"Cleanup failed: {type(exc).__name__}: {exc}"
+        if metadata is not None:
+            # One dump at the end: a killed worker loses the whole sidecar.
+            try:
+                with output.with_suffix(".json").open("x", encoding="utf-8") as file:
+                    json.dump(metadata, file, indent=2)
+            except Exception as exc:
+                error = error or f"Metadata write failed: {type(exc).__name__}: {exc}"
         if error:
             # Error logging is best-effort and stays entirely in the worker.
             try:
@@ -210,7 +199,7 @@ class WebcamRecorder:
             if not math.isfinite(timeout) or timeout <= 0:
                 raise ValueError("timeout must be finite and positive")
             self.output.parent.mkdir(parents=True, exist_ok=True)
-            for suffix in (self.output.suffix, ".csv", ".json", ".errors.txt", ".ffmpeg.log"):
+            for suffix in (self.output.suffix, ".json", ".errors.txt", ".ffmpeg.log"):
                 path = self.output.with_suffix(suffix)
                 if path.exists():
                     raise FileExistsError(path)
