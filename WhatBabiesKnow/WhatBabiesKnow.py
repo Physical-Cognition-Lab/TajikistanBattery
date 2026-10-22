@@ -29,7 +29,8 @@ def load_sequence(csv_path, subject_id):
         for name, category_rows in groupby(block_rows, key=lambda row: row["category"]):
             categories.append({"name": name, "videos": [row["video"] for row in category_rows]})
         blocks.append({"block": block_number, "categories": categories})
-    return {"subject_id": subject_id, "random_seed": seed, "blocks": blocks, "events": []}, rows
+    return {"subject_id": subject_id, "random_seed": seed, "blocks": blocks,
+            "schedule": csv_path.name, "schedule_rows": rows, "events": []}, rows
 
 
 def save_event(trigger, block=None, trial=None, video=None):
@@ -190,10 +191,6 @@ if __name__ == "__main__":
     # Load the assigned schedule and preserve the exact CSV rows with the data.
     sequence, rows = load_sequence(stimuli_dir / "sequences.csv", subject_id)
     events = sequence["events"]
-    with (subject_dir / f"{subject_id}_sequence.csv").open("x", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=list(rows[0]))
-        writer.writeheader()
-        writer.writerows(rows)
 
     # Save the planned order before opening the window.
     sequence_path = subject_dir / f"{subject_id}_sequence.json"

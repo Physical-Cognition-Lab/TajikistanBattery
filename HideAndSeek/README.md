@@ -1,81 +1,73 @@
 # HideAndSeek
 
-The participant can switch between three puppets, tap the central puppet to
-hide it, then tap where they expect it to reappear. Each puppet follows an
-ordered list of reveal positions from `Stimuli/locations.csv`; which of the
-three lists it walks is counterbalanced across subjects by
-`Stimuli/participant_assignments.csv`.
+A touchscreen prediction game: the participant chooses one of three puppets,
+taps the central puppet to hide it, then taps **above screen centre** where they
+expect it to reappear. Each puppet advances along its own assigned trajectory.
 
 Run from the repository root: `pixi run hide-and-seek`.
 
-`Stimuli/participant_assignments.csv` is written before data collection and
-holds 400 subjects. Extend it with
-`pixi run python HideAndSeek/tools/make_participant_assignments.py --subjects 500`;
-existing rows never change, because a row depends only on the master seed and
-the subject number.
+## Study structure and timing
 
-## Display
+**Participant setup → welcome/Space → choose, hide, predict, reveal → closing screen.**
 
-The original 16:9 scene is fitted uniformly inside the native fullscreen window,
-without stretching. At 1920 × 1080 it is unchanged; at 1920 × 1200 it occupies
-1920 × 1080, with 60-pixel black bars above and below. Touches are converted back
-to the original scene coordinates before hit-testing and saving. Bar touches
-are logged as misses and cannot submit predictions. Display metadata records
-the actual window size, scene scale, and scene size.
+Up to **83 trials**, stopping sooner when any puppet uses all **35 positions**.
+Choosing and predicting have no response timeout, so session length is variable.
 
-Operator pause messages are not scene-scaled.
-Before collecting data, check the extreme reveal positions and touch alignment
-on the participant screen; fitting preserves the original layout, including
-any clipping already present in that layout.
+| Phase | Timing |
+| --- | --- |
+| New trial or puppet switch | Appearance sound after 0.3 s; hint after 0.5 s; central puppet after 1 s |
+| Hide tap | Hiding sound after 0.3 s; hidden patch after 1 s; prediction can be made sooner |
+| Reveal after prediction | 10 images × approximately 0.1 s, with sound (~1 s) |
+| Between continuing trials | Save data, then 1 s of the scene without a central puppet |
 
-## Flow
+Portrait switches restart the appearance stage. Quick predictions cancel any
+pending hiding sound. First-trial hide/predict hints follow the current stage.
+Loading, saving, refresh timing and pauses add time; no gap follows the final trial.
 
-```text
-Session
-├── Participant number + optional webcam recording
-├── Welcome/instructions → Space to begin
-├── Start webcam recording if selected
-├── Trials: up to 83, or until any puppet uses its 35 positions
-│   ├── Choose/switch puppet ............ participant-paced
-│   ├── Tap central puppet to hide ..... participant-paced
-│   ├── Tap above screen centre
-│   │   to predict its next position ... participant-paced
-│   ├── Reveal animation + sound ....... ~1 s (10 images × 0.1 s)
-│   └── Save data → next trial
-├── Save final data
-└── Closing message → Space to close; stop recording
-```
+## Assigned paths and display
 
-## Timing
+`Stimuli/locations.csv` defines three ordered paths. Each participant's row in
+`Stimuli/participant_assignments.csv` assigns those paths to blue/red/green.
+The participant chooses the actual puppet order; it is **not** predetermined.
+Keep both CSVs unchanged during collection. Operator text is in `instructions.txt`.
 
-There is no fixed session duration: choosing, hiding and predicting have no
-response timeout. After a prediction, the reveal uses 10 images, each shown
-for about 0.1 s (about 1 s in total), with a reveal sound. Refresh timing and
-pauses can extend this. There is no separately timed gap before the next
-trial; data is saved first. The first trial includes extra hide/predict hints.
+The **1920 × 1080** scene scales uniformly inside the selected fullscreen monitor.
+At 1920 × 1200 it has 60-pixel black bars above/below. Touches are converted back
+to scene coordinates; bar touches count as misses. Check touch alignment and
+extreme reveal positions before collection; original scene clipping is retained.
 
-During choosing or the reveal, Esc pauses; Space resumes and Esc again stops.
-Esc on the welcome or closing screen exits directly.
+## Controls and recording
 
-There is no X-controlled video break in this study.
+- **Touch/click:** select a portrait, hide the visible central puppet, or predict.
+- **Space:** advance welcome/closing screens or resume a pause.
+- **Esc:** pause during choosing, reveal or the inter-trial gap; Esc again stops.
+  Esc on welcome/closing exits directly.
+- Webcam is optional, default **off**; it starts after welcome and includes
+  pauses and the closing screen. **No gaze recording or X video break.**
 
-## Triggers
+## Events / triggers
 
-These names are saved in the JSON session table (`action` column) and sent as
-text to the optional webcam recorder. No eye-tracker triggers are sent yet.
+Named software events are saved in JSON `rows` (`action`) and sent to the webcam:
 
-- `study_start`: before the first trial.
-- `trial_start` / `trial_end`: before choosing / after the reveal. Stopping
-  during choosing leaves that trial without a `trial_end`.
-- `switch`: a puppet portrait is selected.
-- `hide`: the central puppet is tapped to hide it.
-- `predict`: a valid prediction above screen centre is tapped.
-- `miss`: a tap does not hide a puppet or make a valid prediction.
-- `pause`: when the Esc pause screen opens.
-- `study_end` / `study_stopped`: normal completion / operator stops early.
+| Event | Meaning |
+| --- | --- |
+| `study_start` | Before the first trial |
+| `trial_start` / `trial_end` | Before choosing / after reveal (including an interrupted reveal) |
+| `switch` / `hide` / `predict` / `miss` | Portrait choice / hide tap / valid prediction / other tap |
+| `pause` | Pause screen opens |
+| `study_end` / `study_stopped` | Normal completion / operator stops |
 
-Click events keep their original press times, but are added to the table and
-sent to the recorder after a valid prediction, not at the tap itself. Stopping
-during choosing discards that trial's buffered clicks.
-There are no separate reveal-onset/offset or `resume` triggers. Data is saved
-after each trial and at session end; exiting the welcome screen logs no study events.
+Click rows retain press times, but are added and sent to the webcam **after a
+valid prediction**. Stopping during choosing discards that trial's buffered
+clicks and leaves no `trial_end`. No reveal-onset/offset or `resume` events.
+
+## Saved data
+
+Under `Data/Sxxx/`:
+
+- **`Sxxx.json`:** `metadata` contains source filenames, colour→pattern mapping,
+  full `planned_trajectories` (with playback angles) and display information;
+  `rows` contains actual clicks, predictions, targets and events.
+  The plan is saved before trials; updates follow each trial and session end.
+  `time_study` includes participant setup; `time_trial` is relative to trial start.
+- **`video/`:** optional webcam recording and timing files. No separate sequence CSV.

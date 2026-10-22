@@ -1,163 +1,84 @@
 # ANT_task
 
-Keyboard implementation based on **`old/ANT_task.py`**, not a recreation of the older
-E-Prime experiment or the published protocol. Run from the repository root:
+A keyboard attention task: identify the **middle bird's colour**, ignoring its
+neighbours and position above/below the nest. **G = yellow; H = red.** This follows
+the converted `old/ANT_task.py`, not a recreation of the published/E-Prime protocol.
+Touchscreen/mouse input is not a response.
 
-```powershell
-pixi run ant-task
-```
+Run from the repository root: `pixi run ant-task`.
 
-## Participant and responses
+## Study structure and timing
 
-Uses the shared participant-number/monitor dialog, with optional webcam recording
-(off by default). There is no eye-tracker option or gaze recording.
+**Setup → welcome/Space → 6 practice trials → 3 × 16 test trials → closing screen.**
 
-Identify the **middle bird's colour**, ignoring its neighbours and whether the
-row is above or below the nest. Press **G for yellow** and **H for red**, as in
-the old PsychoPy script. These are real keyboard responses, not just saved
-labels. Mouse clicks and touchscreen taps are not responses; no touchscreen
-houses are drawn. Other keys do not count as participant responses.
+Practice uses six fixed targets, with no cue or response deadline, followed by
+**1 s feedback** and a Space-controlled reminder after each. The first four
+targets are birds-only strips; the last two use the full scene.
 
-## Editable instructions
+Each test trial:
 
-All instruction, reminder, break and closing messages are read from
-**`instructions.txt`**, using the same `[section]` format as HideAndSeek.
-Edit or translate the wording without changing the Python script; keep the
-section headings and the G/yellow, H/red response mapping unchanged. The file
-is checked for missing/empty required sections before participant setup.
+| Phase | Requested duration |
+| --- | --- |
+| Initial fixation | Participant's assigned 0.4–1.6 s value, reused every trial |
+| Cue + warning sound when specified | 350 ms |
+| Post-cue fixation | 100 ms |
+| ISI | 150 ms; same tree/unhighlighted eggs stay visible, not a black screen |
+| Target | Until first G/H response, maximum 5 s |
+| Correct/incorrect/no-response feedback + sound | 1 s |
 
-Messages use **bold black text on an opaque ivory panel** over the original
-artwork, rather than low-contrast text directly over the picture. The panel is
-only present on message screens, never during fixation, cues, targets or
-feedback. The exact loaded wording is also kept in the participant JSON.
+Space-controlled progress screens follow test trials **16 and 32**. Session
+length depends on responses and operator waits. Intervals are refresh-bound;
+saving after responses/feedback adds untimed delays, with no extra timed ITI.
 
-## Protocol and intentional changes from the converted script
+## Assigned order and display
 
-- Six fixed, untimed practice targets: YELLOW_CONG, YELLOW_INC, RED_CONG,
-  RED_INC, ANT_6 and ANT_7, with one-second feedback and an operator-controlled
-  reminder after each. The first four are birds-only strips; the last two use
-  the full tree scene. Practice starts directly with the target, without cues.
-- 48 test conditions from `Stimuli/trial_list.csv`, transcribed from
-  `old/Trial_list_ANT.xlsx`. The workbook is also copied into Stimuli for reference;
-  the runtime reads the CSV, so Excel libraries are not required.
-- `Stimuli/sequences.csv` preassigns all 48 conditions to S001–S400: shuffle once
-  per participant, then split into three blocks of 16. Each block need not be
-  balanced. Playback reads the CSV in saved order, with no runtime shuffling.
-  Missing participants and malformed schedules stop setup before presentation.
-- Initial fixation: one shuffled value from 0.4–1.6 s in 0.1 s steps, reused for
-  every trial, preserving the old script's `fix_times[1]` behaviour.
-- Cue: 350 ms; warning sound starts with the cue when specified in the CSV.
-- Post-cue fixation: 100 ms, followed by a 150 ms interstimulus interval (ISI).
-  **Both show `ANT_1`: the same tree and unhighlighted eggs**, so the picture
-  stays continuously visible for the combined 250 ms before the birds appear.
-  This intentionally replaces the old script's 150 ms black screen, without
-  removing the interval or changing its requested duration.
-- Target: until the first G/H response, maximum **5 seconds**.
-- Correct/incorrect/missing response: supplied feedback image and sound, 1 second.
-  There is no added timed post-feedback interval. Saving introduces an untimed
-  delay before feedback/next trial, as in the converted script.
-- Progress pictures after test trials 16 and 32; Space continues.
+`Stimuli/trial_list.csv` defines the 48 test conditions; `Stimuli/sequences.csv`
+preassigns their order, seed and fixation duration for S001–S400. The shuffled
+order is split into blocks of 16 (not necessarily balanced within blocks).
+Playback does not shuffle or generate missing assignments. Keep inputs unchanged.
+To safely extend the schedule: `pixi run python -m ANT_task.Stimuli.generate_sequences --subjects 500`.
 
-Visual intervals are refresh-bound and may exceed requested durations. Warning
-and feedback sounds use the converted script's files, without replacing them
-with E-Prime/paper sounds or forcing a different duration.
+The selected monitor is fullscreen. Main images retain their **1920 × 1400**
+size on 1920-wide collection displays: 160 pixels per edge are cropped at
+1920 × 1080, or 100 at 1920 × 1200, with no added black bars. Practice strips
+are **960 × 400**. Smaller screens scale uniformly; check cropping/legibility.
+Original image distortion/cropping is retained. Operator wording comes from
+`instructions.txt`; keep section names and the G/H mapping when translating.
 
-## Pre-generated randomisation
+## Controls and recording
 
-`Stimuli/trial_list.csv` is the source condition table; the runtime schedule is
-`Stimuli/sequences.csv` (one test trial per row). Columns include subject ID,
-seed, fixation duration, trial/block, original condition, colour, warning, cue,
-target and expected response. Practice order is fixed and is not randomised.
+- **G/H:** participant responses. RT uses the keypress timestamp relative to
+  the target flip; pre-onset and post-deadline presses are rejected.
+- **Space:** advance instruction/progress/closing screens; **Esc** there stops.
+- **Esc in a test trial:** queue a pause after feedback. Space resumes, Esc stops.
+  In untimed practice it ends the attempt, then pauses after feedback.
+- Optional webcam defaults **off**, starts after welcome and includes practice,
+  pauses and closing. **No gaze recording or X video break.**
 
-Generate or safely extend the schedule from the repository root:
+## Events / triggers
 
-```powershell
-pixi run python -m ANT_task.Stimuli.generate_sequences
-pixi run python -m ANT_task.Stimuli.generate_sequences --subjects 500
-```
+Named software events are saved in `events` and sent to the optional webcam:
 
-The fixed master seed is **20261022**; each participant's seed is the master
-plus their number. The generator preserves existing assignments when extending,
-does nothing if the requested schedule already exists unchanged, and refuses
-to overwrite mismatched assignments or reduce the participant count. Keep the
-generator, source conditions and assigned CSV unchanged during collection.
-Reproduction assumes the same generator and Python randomisation behaviour.
+| Event | Meaning |
+| --- | --- |
+| `study_start` | Before practice |
+| `trial_start` / `trial_end` | Before trial phases / after feedback |
+| `fixation_onset`, `cue_onset`, `postcue_fixation_onset`, `isi_onset` | First flips of test phases |
+| `target_onset` / `feedback_onset` | First target / feedback flip |
+| `response` / `no_response` | Valid G/H press / deadline reached |
+| `pause` | Pause screen opens |
+| `study_end` / `study_stopped` / `study_error` | Completion / stop / exception |
 
-Before presentation the participant's validated trial order, seed and fixation
-are saved in `Data/Sxxx/Sxxx.json`. No participant CSV exports are written;
-the master CSVs in `Stimuli/` remain inputs only. There is no automatic schedule
-generation or fallback at study startup.
+No separate phase-offset or `resume` events. An unfinished trial can have events
+without a result; a result without `trial_end` means feedback did not finish.
+Software flip/keypress timestamps still require real display/audio/keyboard validation.
 
-## Display and controls
+## Saved data
 
-Retains the converted script's **1920 × 1400** full-scene images and
-**960 × 400** practice strips, including existing distortion/cropping and the
-incomplete central bird in RED_INC.JPG. Original media are copied unchanged.
-The task uses the selected monitor's entire native fullscreen window, with no
-1080-high mask. On **1920 × 1200**, main images stay **1920 × 1400**, centred:
-only **100 pixels at the top and bottom** are cropped, with **no black bars**
-and no additional stretching. On 1920 × 1080, the crop remains 160 pixels per
-edge. Birds and practice strips keep the same pixel sizes on both
-monitors. Smaller displays scale drawing uniformly using
-1920 × 1080 as the scaling reference, not a clipping boundary. Display metadata
-records the actual visible scene size. Check cropping and instruction legibility
-on the collection display.
-
-Space advances operator instruction/progress screens; Esc there stops.
-During a timed test trial, Esc requests a pause **after feedback**, so pausing
-does not contaminate the response window. Space resumes; Esc again stops.
-During untimed practice, Esc ends the current attempt and opens the pause after
-feedback. There is no X-controlled video break in this study.
-Closing waits for Space/Esc instead of the old script's automatic two-second exit.
-
-## Saved data and timing
-
-`Data/Sxxx/Sxxx.json` contains metadata, planned test order, completed response
-rows and event markers. The `results` list contains practice/test results,
-including original condition number, block, expected/actual g/h response,
-response colour, correctness, RT in seconds and target onset. Unlike the old
-script, practice responses are saved too. Metadata identifies the response mode
-as `keyboard` and records the colour/key mapping. New keyboard results do not
-have touch coordinates; existing touchscreen session files are not changed.
-JSON is saved after the response and after feedback, and at session end.
-An interrupted trial may have events but no result row; a result without
-`trial_end` means feedback did not finish. Errors after study start attempt a
-final save and release window/sound/recorder resources.
-
-Events include study start/end/stop/error, trial start/end, fixation/cue/
-postcue-fixation/ISI/target/feedback onsets, response/no_response and pause. Phase onsets are flip callbacks; no separate offset timestamps are
-claimed. The visible-tree interval is marked `isi_onset`, replacing the former
-`blank_onset`; existing session files are not changed. Response events include
-the actual G/H `key`, its PsychoPy keyboard
-`press_time` and RT. RT is the keypress timestamp minus target flip callback
-time, not the later polling time. Pending keyboard events are cleared at target
-onset; pre-onset and post-deadline keypresses are rejected. Keyboard/display/audio
-latency must be validated on the real hardware. Optional webcam event labels
-are not frame-exact onset measurements.
-
-Read the tables with pandas:
-
-```python
-import json
-import pandas as pd
-
-with open("ANT_task/Data/S001/S001.json", encoding="utf-8") as file:
-    session = json.load(file)
-
-results = pd.DataFrame(session["results"])
-events = pd.DataFrame(session["events"])
-planned_trials = pd.DataFrame(session["planned_trials"])
-```
-
-Seed, fixation duration, display information and other session metadata remain
-at the top level. Optional webcam files are still saved separately under `video/`.
-Existing CSV outputs from earlier versions are not deleted or modified.
-
-## Checks
-
-```powershell
-python -m unittest ANT_task.test_ant
-```
-
-These checks do not open PsychoPy or create participant data. A real keyboard,
-display and audio pilot is required before data collection.
+**`Data/Sxxx/Sxxx.json`** contains `planned_trials`, seed, fixation duration,
+display metadata, exact instructions, `events` and practice/test `results`
+(condition, block, expected/actual key, correctness, RT and target onset).
+The plan is saved before presentation; responses, feedback and session end each
+checkpoint JSON. Event times include setup after assignment loading and all pauses.
+Optional webcam/timing files are in **`video/`**. No participant CSV is exported;
+old CSV outputs are left untouched.

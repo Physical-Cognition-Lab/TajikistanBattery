@@ -48,6 +48,19 @@ def save_event(action, **fields):
         recorder.send_text(action)
 
 
+def planned_trials(sequences, target_locations, stimulus_names):
+    """Snapshot all trials, including those a later look-away may skip."""
+    return [
+        {"sequence": sequence_number, "trial": trial_number,
+         "cue": stimulus_names[2 * (sequence_number - 1)],
+         "target": stimulus_names[2 * (sequence_number - 1) + 1],
+         "location_index": int(location_index), "cue_position": list(cue_loc),
+         "target_position": [int(value) for value in target_locations[location_index - 1]]}
+        for sequence_number, column in enumerate(sequences, start=1)
+        for trial_number, location_index in enumerate(sequences[column], start=1)
+    ]
+
+
 def save_data(subject_dir):
     """Rewrite the participant file, so a stop or crash loses nothing.
 
@@ -344,6 +357,11 @@ if __name__ == "__main__":
     elif subjnum in list(range(4, 1000, 4)):
         targ_loc = np.array([targ_loc[2], targ_loc[1], targ_loc[0], targ_loc[3]])
 
+    stimulus_dirs = sorted(d for d in stimuli_dir.iterdir() if d.is_dir())
+    stimulus_names = [directory.name for directory in stimulus_dirs]
+    assert len(stimulus_dirs) == 2 * sequence_count, \
+        "expected one cue and one target folder per sequence"
+
     # Window and stimuli
     # Registered cleanup runs on normal exit, Esc, or an exception (last added first).
     with ExitStack() as cleanup:
@@ -378,6 +396,9 @@ if __name__ == "__main__":
             "ended": None,
             "completed": False,
             "timing_issue": False,
+            "schedule": "sequences_t.csv",
+            "target_locations": targ_loc.tolist(),
+            "planned_trials": planned_trials(sequences, targ_loc, stimulus_names),
         }
         save_data(subject_dir)
 
@@ -391,11 +412,6 @@ if __name__ == "__main__":
         # Images: the folders come in numbered cue/target pairs, 01_StarCue,
         # 01_StarTarget, 02_TrefoilCue, ...
         IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg"}
-        stimulus_dirs = sorted(d for d in stimuli_dir.iterdir() if d.is_dir())
-        stimulus_names = [directory.name for directory in stimulus_dirs]
-        assert len(stimulus_dirs) == 2 * sequence_count, \
-            "expected one cue and one target folder per sequence"
-
         stimuli = [
             [
                 visual.ImageStim(win, units="pix",

@@ -113,6 +113,17 @@ def save_event(action, trial=None, **fields):
         recorder.send_text(action)
 
 
+def planned_trajectories(locations):
+    """Preserve each puppet's path, with the same angle conversion as playback."""
+    return {
+        colour: [
+            {"position": index, "target_x": x, "target_y": y, "target_angle": -angle}
+            for index, (x, y, angle) in enumerate(path, start=1)
+        ]
+        for colour, path in locations.items()
+    }
+
+
 def save_data(subject_dir):
     """Rewrite the participant file, so a stop or crash loses nothing.
 
@@ -535,6 +546,8 @@ if __name__ == "__main__":
         "patterns": {
             colour: schedule_row[colour] for colour in ("blue", "red", "green")
         },
+        "locations_source": "locations.csv",
+        "planned_trajectories": planned_trajectories(locations),
         "psychopy": psychopy.__version__,
         "window_size": list(WIN_SIZE),
         "started": datetime.now().isoformat(timespec="seconds"),

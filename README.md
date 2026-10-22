@@ -1,124 +1,69 @@
 # TajikistanBattery
 
-Infant studies prepared for data collection in Tajikistan. The aim is to make
-existing studies easy to run and maintain, including at remote sites operated
-by non-specialists.
+PsychoPy studies prepared for infant/child data collection in Tajikistan.
+Each study's README explains its purpose, timing, controls, events and saved data:
 
-The studies use readable PsychoPy scripts, preserving the established study
-designs and behaviour.
+| Study | Main task | Run from the repository root |
+| --- | --- | --- |
+| [ANT_task](ANT_task/README.md) | G/H keyboard response to the middle bird's colour | `pixi run ant-task` |
+| [Features2Functions](Features2Functions/README.md) | 18 object pictures with attention getters | `pixi run features-to-functions` |
+| [HideAndSeek](HideAndSeek/README.md) | Touchscreen puppet-position prediction | `pixi run hide-and-seek` |
+| [InformationGain](InformationGain/README.md) | Cue/target animations with operator-marked look-aways | `pixi run information-gain` |
+| [WhatBabiesKnow](WhatBabiesKnow/README.md) | Three blocks of cognitive-task videos | `pixi run what-babies-know` |
 
-## Studies
+## Setup and running
 
-- [ANT_task](ANT_task/README.md) — G/H keyboard bird-colour attention task, based on the converted PsychoPy study.
-- [Features2Functions](Features2Functions/README.md) — still pictures of objects, with attention getters.
-- [HideAndSeek](HideAndSeek/README.md) — a touchscreen puppet game.
-- [InformationGain](InformationGain/README.md) — cue and target animations, with look-away marking.
-- [WhatBabiesKnow](WhatBabiesKnow/README.md) — three video blocks using pre-generated subject schedules; see its README for sampling rules, movie timing and event markers.
+Install [pixi](https://pixi.sh), then use the commands above or the desktop shortcuts
+in `Shorcuts/`. First launch may take longer while the environment installs.
+`pixi.toml` / `pixi.lock` pin Python 3.10, PsychoPy and DeToX; keep the tested
+versions rather than updating packages during collection.
 
-## Repository structure
+- Choose an unused participant number and the **participant monitor** in setup.
+  A new `Data/Sxxx/` folder is created only after validation; existing folders cannot be reused.
+- Webcam defaults **off**, except in InformationGain (**on**).
+- Features2Functions, InformationGain and WhatBabiesKnow offer eye tracking
+  and Recalibrate, both default **on**. A failed connection offers Retry,
+  Uncheck or Cancel. Unchecking Recalibrate retains the current calibration;
+  a cancelled/unaccepted calibration does not automatically abort setup.
+- Use the fullscreen monitor configured for the Tobii tracker. Check layout,
+  touch alignment, sound level and timing on the real collection hardware.
+  Studies target 1920 × 1080 / 1920 × 1200 displays, but fitting differs by study.
+- Playback volume is **1.0** (explicit in InformationGain, default elsewhere).
+  This does not normalize recordings or set Windows/speaker volume.
 
-Each study has its own folder:
+## Events and saved data
 
-```text
-StudyName/
-    StudyName.py       study script
-    Stimuli/           images, videos and sounds
-    Data/              participant folders: S001, S002, ...
-```
+Named triggers are **software events, not hardware TTL pulses**. They are saved
+in the participant JSON and sent as event-name labels to optional recordings.
+Gaze/webcam clocks are separate; labels are not physical-onset measurements.
+Recordings continue through pauses. See each study for exact start/stop points,
+event meanings, time origins and save checkpoints; no study emits `resume`.
 
-Shared code lives in `utils/`:
+Outputs live under each study's `Data/Sxxx/`:
 
-- `subject_selection.py` — participant dialog, options and folder creation.
-- `eye_tracker_check.py` — Tobii connection check.
-- `pause_video.py` — X-controlled video breaks using `pause.avi` (only Features2Functions and WhatBabiesKnow).
-- `data_saving.py` — safe JSON writes shared by the studies.
-- `video_recording/` — webcam recording in a separate process.
+- **Main JSON:** planned assignment and actual behavioural events/results.
+  ANT_task uses `planned_trials`; Features2Functions uses `stimuli`;
+  WhatBabiesKnow uses `blocks` plus original `schedule_rows`;
+  HideAndSeek metadata includes `patterns` / `planned_trajectories`;
+  InformationGain metadata includes `planned_trials` / `target_locations`.
+  A planned trial is not proof it was presented. No separate participant
+  sequence CSV is exported; existing CSV outputs are left untouched.
+- **`Sxxx_gaze.h5`:** optional DeToX gaze/events in simplified pixel coordinates
+  (Features2Functions, InformationGain, WhatBabiesKnow only).
+- **`video/`:** optional webcam video and timing/event files; no webcam audio.
 
-`pixi.toml` defines the environment and launch commands; `pixi.lock` pins package
-versions. The project uses Python 3.10 and a tested PsychoPy development snapshot
-(`ba68a2738c3795c3f2b930571c91324a8cdadc81`, reporting version 2027.1.0),
-with pyglet 2 and PyAV movie playback. PsychoPy and DeToX are pinned to exact Git
-commits so installing the project does not pull an untested branch update.
+Keep the master schedule CSVs in `Stimuli/` unchanged during collection.
+JSON writes protect the previous checkpoint if replacement fails; unsaved events
+can still be lost on a crash.
 
-The snapshot passed a 54-movie playback diagnostic with every source frame
-submitted, including final frames, and short study-control tests with webcam
-recording. Movie presentations still lasted about 42–63 ms longer than their
-encoded durations; physical audio/video timing and eye tracking need validation
-on the collection setup. Keep the pinned versions when reproducing these tests.
+## Code and validation
 
-## Script structure
+Each folder contains its study script, `Stimuli/` and participant `Data/`.
+Shared participant/display checks, safe saving, video breaks and webcam recording
+live in `utils/`. Keep heavy imports inside the script's main guard: Windows
+webcam workers re-run the module; see [VIDEO_WORKER_STARTUP.md](utils/VIDEO_WORKER_STARTUP.md).
 
-Each study stays in one script:
-
-1. **Standard-library imports and helper functions.**
-2. **Settings and paths** — stimulus locations, timing and study constants.
-3. **Main block** (`if __name__ == "__main__":`) — heavy imports, participant
-   selection, session setup, study loop, data saving and cleanup.
-
-Keep PsychoPy, NumPy, pandas and local GUI imports inside the main block.
-The webcam worker re-runs the study module, so imports outside it slow down
-recording startup. See [VIDEO_WORKER_STARTUP.md](utils/VIDEO_WORKER_STARTUP.md).
-
-Keep changes simple and readable. Shared functionality belongs in `utils/`;
-study-specific behaviour stays in the study script.
-
-All studies use `study_dir` for their main paths, `pause_study(win)` (True means
-stop), and `save_data(subject_dir)`. Each keeps
-its own output format; the shared JSON writer protects the previous save if a
-new write fails.
-
-Each script uses the standard-library `ExitStack` to register window and sound
-cleanup as resources are created. Cleanup also runs on early exits or exceptions;
-the webcam recorder keeps its own context-managed shutdown.
-
-## Running a study
-
-Install [pixi](https://pixi.sh), then run from the repository root:
-
-```powershell
-pixi run ant-task
-pixi run features-to-functions
-pixi run hide-and-seek
-pixi run information-gain
-pixi run what-babies-know
-```
-
-The desktop shortcuts in `Shorcuts/` launch the same tasks. The first run may
-take longer while pixi installs the environment.
-
-> **Display warning:** These studies use specific stimulus sizes and positions,
-> with no automatic layout fitting. Use a 1920 × 1080 screen for HideAndSeek;
-> the other studies are set up for 1920 × 1080 or 1920 × 1200 screens.
-> If you change the screen resolution or stimulus dimensions, check the layout
-> and click locations in a practice run before collecting data.
-
-## Participant setup
-
-The shared dialog asks for the participant number, webcam recording and,
-where supported, eye tracking with a nested **Recalibrate** option.
-
-- Webcam recording defaults to off in every study except InformationGain; the
-  operator can still tick it in any study before continuing.
-- Eye tracking is offered (default on) in Features2Functions, InformationGain and
-  WhatBabiesKnow; HideAndSeek and ANT_task hide those options.
-- Recalibrate defaults to on and is enabled only when eye tracker is selected.
-- A failed tracker check offers instructions, Retry, Uncheck or Cancel.
-
-The dialog ensures `Data/` exists and creates a new participant folder only
-after its checks pass and the operator confirms. Existing participant folders
-cannot be reused.
-
-Features2Functions, InformationGain and WhatBabiesKnow use DeToX for positioning,
-optional recalibration, gaze recording and event markers. Recording continues
-through pauses. See each study README for save timing; real tracking requires
-fullscreen on the display configured for the tracker. HideAndSeek has no gaze recording.
-
-## Output
-
-Each participant's files are saved under the study's `Data/Sxxx/` folder:
-
-- Behavioural data as JSON, saved as the study progresses.
-- Optional webcam video under `video/`, with event labels and timing files.
-- Optional `Sxxx_gaze.h5` containing DeToX gaze data and events (simplified pixels).
-
-See each study's `DATA_FORMAT.md`, where provided, for file details.
+The pinned PsychoPy snapshot passed a 54-movie playback diagnostic with every
+source frame submitted. Movie presentations were still about 42–63 ms longer
+than encoded durations. This is not a substitute for physical audio/video,
+keyboard/touch and eye-tracker validation on the collection setup.
